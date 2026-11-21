@@ -9,7 +9,12 @@
 #include <QVideoSink>
 
 #include <algorithm>
+#include <cstring>
 #include <functional>
+#include <utility>
+
+#include <dlfcn.h>
+#include <link.h>
 
 namespace picsel {
 
@@ -24,6 +29,32 @@ constexpr qint64 kSlackMs = 50;
 // While playing, take whatever comes after this many frames, in case the
 // stream's timestamps never reach the target (odd edit lists, start offsets).
 constexpr int kMaxPlayedFrames = 45;
+
+// Qt's ffmpeg backend leaves libav on its default stderr logger at info
+// level, so every video prints hardware-decode fallback warnings ("No support
+// for codec h264 profile 100", "Failed setup for format vaapi") that are
+// harmless, and some of them are logged at error level. Keep only fatal
+// messages: real failures still reach us through QMediaPlayer::errorOccurred,
+// and QT_FFMPEG_DEBUG=1 brings the full log back. There are no libav headers
+// to build against, so av_log_set_level is looked up in the loaded libavutil.
+// Call once a QMediaPlayer exists, so the plugin (and libavutil) is loaded.
+void quietenLibav() {
+    static bool done = false;
+    if (std::exchange(done, true) || qEnvironmentVariableIsSet("QT_FFMPEG_DEBUG"))
+        return;
+    void *avutil = nullptr;
+    dl_iterate_phdr([](dl_phdr_info *info, size_t, void *out) {
+        if (!strstr(info->dlpi_name, "/libavutil.so"))
+            return 0;
+        *static_cast<void **>(out) = dlopen(info->dlpi_name, RTLD_LAZY | RTLD_NOLOAD);
+        return 1;
+    }, &avutil);
+    if (!avutil)
+        return;
+    if (auto setLevel = reinterpret_cast<void (*)(int)>(dlsym(avutil, "av_log_set_level")))
+        setLevel(8); // AV_LOG_FATAL
+    dlclose(avutil); // drops our extra reference only
+}
 
 } // namespace
 
@@ -118,6 +149,7 @@ VideoThumbnailer::Slot *VideoThumbnailer::createSlot() {
 
 void VideoThumbnailer::createPlayer(Slot *s) {
     s->player = new QMediaPlayer(this);
+    quietenLibav();
     connect(s->player, &QMediaPlayer::mediaStatusChanged, this, [this, s] { onStatus(s, s->generation); });
     connect(s->player, &QMediaPlayer::errorOccurred, this, [this, s](QMediaPlayer::Error, const QString &msg) {
         if (s->phase != Phase::Idle && s->phase != Phase::Finishing)

@@ -133,8 +133,14 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 - **No mmap for decoding:** a file truncated by another program
   mid-decode would SIGBUS the whole app.
 - **ffmpeg noise:** the backend is chatty. `qt.multimedia.ffmpeg*.info` is
-  silenced in `main.cpp`. The h264/vaapi "No support for profile" lines come
-  from libav itself (hardware decode fallback) and are harmless.
+  silenced in `main.cpp`. libav itself prints hardware-decode fallback lines
+  ("No support for codec h264 profile 100", "Failed setup for format vaapi"),
+  some at error level, straight to stderr. `VideoThumbnailer` drops libav to
+  fatal-only once its first player has loaded the plugin, looking up
+  `av_log_set_level` with `dlsym` (no libav headers needed).
+  `QT_FFMPEG_DEBUG=1` keeps the full log.
+- **Qt logs go to journald** when stderr is not a terminal. Set
+  `QT_FORCE_STDERR_LOGGING=1` to capture QML warnings from scripted runs.
 - **GridView origin:** after rows are removed above the view (e.g. a move),
   the GridView's `originY` is no longer 0. All scroll maths in `Mosaic.qml`
   must be relative to `originY`, or the few remaining pictures end up

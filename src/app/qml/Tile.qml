@@ -173,7 +173,9 @@ Item {
                 anchors.bottomMargin: -Theme.gap / 2 - 2
                 height: 4
                 radius: 2
-                color: Theme.groupColors[tile.groupId % Theme.groupColors.length]
+                // Evaluated even while hidden, so guard groupId == -1 (no group).
+                color: tile.groupId >= 0 ? Theme.groupColors[tile.groupId % Theme.groupColors.length]
+                                         : "transparent"
             }
         }
     }
