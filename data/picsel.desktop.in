@@ -4,7 +4,9 @@ Name=picsel
 GenericName=Picture Selector
 Comment=Choose which pictures of a folder to keep
 Exec=picsel %f
-Icon=picsel
+# Absolute path: works even before the desktop has (re)scanned icon
+# folders created by the install (e.g. a new ~/.local/share/icons/hicolor).
+Icon=@PICSEL_ICON_PATH@
 Terminal=false
 StartupNotify=true
 SingleMainWindow=true
