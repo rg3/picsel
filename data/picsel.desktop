@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=picsel
+GenericName=Picture Selector
+Comment=Choose which pictures of a folder to keep
+Exec=picsel %f
+Icon=picsel
+Terminal=false
+StartupNotify=true
+SingleMainWindow=true
+Categories=Graphics;Photography;Viewer;Qt;
+MimeType=image/jpeg;video/mp4;video/quicktime;inode/directory;
+Keywords=photo;picture;select;cull;gallery;

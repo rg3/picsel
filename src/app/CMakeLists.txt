@@ -31,4 +31,4 @@ target_link_libraries(picsel PRIVATE
   picsel_core
   Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network Qt6::Test)
 
-install(TARGETS picsel RUNTIME DESTINATION bin)
+install(TARGETS picsel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

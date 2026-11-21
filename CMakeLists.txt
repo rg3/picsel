@@ -22,3 +22,7 @@ add_subdirectory(tools)
 
 enable_testing()
 add_subdirectory(tests)
+
+include(GNUInstallDirs)
+install(FILES data/picsel.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES data/picsel.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
