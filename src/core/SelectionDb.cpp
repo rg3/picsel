@@ -164,6 +164,7 @@ QVector<DbFile> SelectionDb::files() const {
         f.size = st.i64(2);
         f.mtimeNs = st.i64(3);
         f.inode = quint64(st.i64(4));
+        f.meta.scanned = !st.isNull(5);
         f.meta.exifTime = st.text(5);
         f.meta.camera = st.text(6);
         if (!st.isNull(7))
@@ -248,8 +249,8 @@ bool SelectionDb::setMeta(const QString &name, const FileMeta &meta) {
     if (!st)
         return setErrorFromDb();
     st.bind(1, name);
-    st.bind(2, meta.exifTime);
-    st.bind(3, meta.camera);
+    st.bind(2, meta.exifTime.isNull() ? QStringLiteral("") : meta.exifTime);
+    st.bind(3, meta.camera.isNull() ? QStringLiteral("") : meta.camera);
     if (meta.dhash)
         st.bind(4, qint64(*meta.dhash));
     else

@@ -4,6 +4,7 @@ add_library(picsel_core STATIC
   core/DirScanner.cpp core/DirScanner.h
   core/Sorting.cpp core/Sorting.h
   core/Settings.cpp core/Settings.h
+  core/Metadata.cpp core/Metadata.h
   image/JpegDecoder.cpp image/JpegDecoder.h
   image/ImageCache.cpp image/ImageCache.h
 )

@@ -134,6 +134,7 @@ FocusScope {
         }
 
         Keys.onPressed: event => root.handleKey(event)
+        onCurrentIndexChanged: root.session.setCurrentRow(currentIndex)
 
         onContentYChanged: visibleTimer.restart()
         onHeightChanged: visibleTimer.restart()

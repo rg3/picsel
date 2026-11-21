@@ -84,8 +84,23 @@ ApplicationWindow {
         anchors.fill: parent
         active: false
         focus: active
-        source: "FullView.qml"
+        sourceComponent: FullView {
+            session: window.session
+            startIndex: mosaic.currentIndex
+            onCloseRequested: window.closeFullView()
+            onIndexChangedByUser: index => mosaic.moveTo(index)
+        }
         onLoaded: item.forceActiveFocus()
+    }
+
+    // Selecting with S/D advances the mosaic; keep the full view in step.
+    Connections {
+        target: mosaic
+        enabled: fullViewLoader.active
+        function onCurrentIndexChanged() {
+            if (fullViewLoader.item)
+                fullViewLoader.item.showIndex(mosaic.currentIndex)
+        }
     }
 
     Connections {

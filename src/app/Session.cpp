@@ -41,6 +41,13 @@ Session::Session(const QString &dir, QObject *parent)
     connect(m_thumbs.get(), &ImageCache::failed, this, &Session::onThumbFailed);
 
     m_columns = settings::columns();
+    m_metaPool.setMaxThreadCount(4);
+    m_metaFlushTimer.setSingleShot(true);
+    m_metaFlushTimer.setInterval(400);
+    connect(&m_metaFlushTimer, &QTimer::timeout, this, &Session::flushMetaWrites);
+    m_resortTimer.setSingleShot(true);
+    m_resortTimer.setInterval(250);
+    connect(&m_resortTimer, &QTimer::timeout, this, &Session::resortAll);
     m_cacheOrderTimer.setSingleShot(true);
     m_cacheOrderTimer.setInterval(0);
     connect(&m_cacheOrderTimer, &QTimer::timeout, this, &Session::rebuildCacheOrder);
@@ -49,6 +56,9 @@ Session::Session(const QString &dir, QObject *parent)
 }
 
 Session::~Session() {
+    m_metaPool.clear();
+    m_metaPool.waitForDone();
+    flushMetaWrites();
     unregisterProviderSession(m_id);
 }
 
@@ -111,7 +121,79 @@ bool Session::loadFiles() {
     m_model.reset(std::move(items));
     recountSelected();
     rebuildCacheOrder();
+    startMetadataScan();
     return true;
+}
+
+void Session::startMetadataScan() {
+    m_metaPool.clear();
+    for (const Item &it : m_model.items()) {
+        if (it.kind != MediaKind::Image)
+            continue;
+        const QString name = it.name;
+        const QString path = QDir(m_dir).filePath(name);
+        const qint64 size = it.size, mtime = it.mtimeNs;
+        m_metaPool.start([this, name, path, size, mtime] {
+            const PhotoInfo info = readPhotoInfo(path).value_or(PhotoInfo{});
+            QMetaObject::invokeMethod(this, [this, name, size, mtime, info] {
+                onMetadataRead(name, size, mtime, info);
+            }, Qt::QueuedConnection);
+        });
+    }
+}
+
+void Session::onMetadataRead(const QString &name, qint64 size, qint64 mtimeNs, const PhotoInfo &info) {
+    const int row = m_model.rowOf(name);
+    Item *it = m_model.mutableAt(row);
+    if (!it || it->size != size || it->mtimeNs != mtimeNs)
+        return; // file changed or vanished meanwhile
+    m_details.insert(name, info);
+    if (!it->meta.scanned || it->meta.exifTime != info.exifTime || it->meta.camera != info.camera) {
+        it->meta.scanned = true;
+        it->meta.exifTime = info.exifTime;
+        it->meta.camera = info.camera;
+        m_pendingMeta.insert(name, it->meta);
+        m_metaFlushTimer.start();
+        const qint64 t = correctedTimeMs(info.exifTime, info.camera, settings::cameraOffsets());
+        if (t != it->sortTimeMs) {
+            it->sortTimeMs = t;
+            if (m_sortMode == SortMode::Date)
+                m_resortTimer.start();
+        }
+    }
+    emit itemInfoChanged(row);
+}
+
+void Session::flushMetaWrites() {
+    if (m_pendingMeta.isEmpty() || !m_db.isOpen())
+        return;
+    SelectionDb::Transaction tx(m_db);
+    for (auto i = m_pendingMeta.cbegin(); i != m_pendingMeta.cend(); ++i)
+        m_db.setMeta(i.key(), i.value());
+    tx.commit();
+    m_pendingMeta.clear();
+}
+
+void Session::setCurrentRow(int row) {
+    if (const Item *it = m_model.at(row))
+        m_currentName = it->name;
+}
+
+void Session::resortAll() {
+    QVector<Item> items = m_model.items();
+    const SortMode m = m_sortMode;
+    std::stable_sort(items.begin(), items.end(), [m](const Item &a, const Item &b) {
+        return sortLess(sortKeyOf(a), sortKeyOf(b), m);
+    });
+    bool same = true;
+    for (int i = 0; i < items.size() && same; ++i)
+        same = items[i].uid == m_model.items()[i].uid;
+    if (same)
+        return;
+    m_model.reset(std::move(items));
+    rebuildCacheOrder();
+    const int row = m_model.rowOf(m_currentName);
+    emit highlightRequested(row >= 0 ? row : 0);
 }
 
 void Session::scheduleCacheOrder() {
@@ -156,12 +238,7 @@ void Session::setSortMode(const QString &mode) {
         return;
     m_sortMode = m;
     m_db.setConfig(QString::fromLatin1(cfg::SortMode), sortModeToString(m));
-    QVector<Item> items = m_model.items();
-    std::sort(items.begin(), items.end(), [m](const Item &a, const Item &b) {
-        return sortLess(sortKeyOf(a), sortKeyOf(b), m);
-    });
-    m_model.reset(std::move(items));
-    rebuildCacheOrder();
+    resortAll();
     emit sortModeChanged();
 }
 
@@ -253,7 +330,12 @@ QVariantMap Session::info(int row) const {
     m[QStringLiteral("isVideo")] = it->kind == MediaKind::Video;
     m[QStringLiteral("selected")] = it->selected;
     m[QStringLiteral("camera")] = it->meta.camera;
-    m[QStringLiteral("date")] = it->meta.exifTime;
+    QString date = it->meta.exifTime;
+    date.replace(QLatin1Char('T'), QLatin1Char(' '));
+    m[QStringLiteral("date")] = date;
+    const PhotoInfo details = m_details.value(it->name);
+    m[QStringLiteral("lens")] = details.lens;
+    m[QStringLiteral("exposure")] = details.exposure;
     return m;
 }
 

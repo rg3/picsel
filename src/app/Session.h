@@ -2,12 +2,15 @@
 #pragma once
 
 #include "FileListModel.h"
+#include "core/Metadata.h"
 #include "core/SelectionDb.h"
 #include "core/Sorting.h"
 #include "image/ImageCache.h"
 #include "image/ImageProviders.h"
 
+#include <QHash>
 #include <QObject>
+#include <QThreadPool>
 #include <QTimer>
 #include <QVariantMap>
 #include <QtQmlIntegration>
@@ -55,6 +58,8 @@ public:
     bool canUndo() const { return !m_undo.isEmpty(); }
 
     Q_INVOKABLE int rowOf(const QString &name) const { return m_model.rowOf(name); }
+    // The view's highlighted row; kept across re-sorts and list changes.
+    Q_INVOKABLE void setCurrentRow(int row);
     Q_INVOKABLE void setSelected(int row, bool selected);
     Q_INVOKABLE void toggleSelected(int row);
     // Reverts the last selection change; returns its row (or -1).
@@ -93,6 +98,10 @@ private:
     void rebuildCacheOrder();
     void scheduleCacheOrder();
     void onThumbReady(const QString &name, QSize fullSize);
+    void startMetadataScan();
+    void onMetadataRead(const QString &name, qint64 size, qint64 mtimeNs, const picsel::PhotoInfo &info);
+    void flushMetaWrites();
+    void resortAll();
     void onThumbFailed(const QString &name);
     void recountSelected();
     bool applySelected(int row, bool selected, bool recordUndo);
@@ -115,6 +124,12 @@ private:
     std::shared_ptr<UidMap> m_uids;
     QVector<UndoEntry> m_undo;
     QTimer m_cacheOrderTimer;
+    QString m_currentName;
+    QHash<QString, PhotoInfo> m_details;      // lens/exposure for the info panel
+    QHash<QString, FileMeta> m_pendingMeta;   // to write to the DB in one transaction
+    QTimer m_metaFlushTimer;
+    QTimer m_resortTimer;
+    QThreadPool m_metaPool; // last: destroyed (and joined) first
 };
 
 } // namespace picsel

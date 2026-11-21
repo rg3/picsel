@@ -1,4 +1,5 @@
 #include "Application.h"
+#include "core/Metadata.h"
 
 #include <QCommandLineParser>
 #include <QDir>
@@ -47,6 +48,7 @@ int main(int argc, char *argv[]) {
     QGuiApplication::setDesktopFileName(QStringLiteral("picsel"));
     QGuiApplication::setApplicationVersion(QStringLiteral(PICSEL_VERSION));
     QGuiApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("picsel")));
+    picsel::initMetadataLibrary();
     QQuickStyle::setStyle(QStringLiteral("Fusion"));
     QGuiApplication::setPalette(darkPalette());
 

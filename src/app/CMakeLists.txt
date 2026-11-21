@@ -21,6 +21,7 @@ qt_add_qml_module(picsel
     qml/Mosaic.qml
     qml/Tile.qml
     qml/SidePanel.qml
+    qml/FullView.qml
     qml/SetupWindow.qml
     qml/FolderPicker.qml
     qml/ErrorWindow.qml
