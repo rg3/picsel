@@ -9,3 +9,4 @@ endfunction()
 
 picsel_add_test(tst_jpegdecoder)
 picsel_add_test(tst_sorting)
+picsel_add_test(tst_mover)
