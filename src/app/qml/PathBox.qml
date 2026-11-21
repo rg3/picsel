@@ -3,7 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Picsel
 
-// A folder path on its own highlighted line.
+// A folder path on its own highlighted line. Long paths drop their start
+// (the end is what identifies the folder); hover shows the full path.
 Rectangle {
     property alias text: label.text
     Layout.fillWidth: true
@@ -16,9 +17,13 @@ Rectangle {
         anchors.fill: parent
         anchors.margins: 10
         verticalAlignment: Text.AlignVCenter
-        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+        elide: Text.ElideLeft
         color: "#9cc2ff"
         font.pixelSize: Theme.fontLarge
         font.bold: true
+        ToolTip.visible: hover.hovered && truncated
+        ToolTip.text: text
+        ToolTip.delay: 300
+        HoverHandler { id: hover }
     }
 }
