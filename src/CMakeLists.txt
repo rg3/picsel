@@ -2,6 +2,7 @@
 add_library(picsel_core STATIC
   core/SelectionDb.cpp core/SelectionDb.h
   core/DirScanner.cpp core/DirScanner.h
+  core/DirWatcher.cpp core/DirWatcher.h
   core/Sorting.cpp core/Sorting.h
   core/Settings.cpp core/Settings.h
   core/Metadata.cpp core/Metadata.h
