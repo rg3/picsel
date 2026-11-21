@@ -1,12 +1,16 @@
 #!/bin/bash
 # Builds a test folder of synthetic pictures for picsel.
-#   make_testset.sh OUTDIR [COUNT]
+#   make_testset.sh OUTDIR [COUNT] [VIDEOS]
 # Creates ~24 unique large JPEGs (DSLR 3:2, phone 16:9, portrait, EXIF-rotated)
 # in OUTDIR/.unique and COUNT hard links named like camera files in
 # OUTDIR/pending-selection, so decode timing is realistic without using GBs.
+# With VIDEOS > 0 it also creates that many short H.264/AAC clips (2-6 s,
+# 1920x1080 landscape or phone-style portrait stored rotated, with
+# creation_time) named PXL_20261121_VID_NNNN.mp4 / DSC_VNNNN.MOV.
 set -euo pipefail
-out=${1:?usage: make_testset.sh OUTDIR [COUNT]}
+out=${1:?usage: make_testset.sh OUTDIR [COUNT] [VIDEOS]}
 count=${2:-60}
+videos=${3:-0}
 uniq="$out/.unique"
 dest="$out/pending-selection"
 mkdir -p "$uniq" "$dest"
@@ -47,3 +51,39 @@ for ((k = 1; k <= count; k++)); do
     ln -f "$src" "$dest/$name"
 done
 echo "$count pictures in $dest"
+
+# name seconds portrait(0/1) creation-time(UTC) source tone-Hz
+make_video() {
+    local f="$dest/$1" rot=()
+    [[ -f $f ]] && return
+    # Phones store portrait video as landscape frames plus a display matrix
+    # (90 degrees clockwise); -noautorotate keeps ffmpeg from baking it in.
+    (( $3 )) && rot=(-display_rotation -90 -noautorotate)
+    for codec in libx264 mpeg4; do
+        local extra=()
+        [[ $codec == libx264 ]] && extra=(-preset veryfast)
+        ffmpeg -nostdin -v error -y "${rot[@]}" -f lavfi -i "$5=size=1920x1080:rate=30" \
+            -f lavfi -i "sine=frequency=$6" -t "$2" -c:v "$codec" "${extra[@]}" -pix_fmt yuv420p \
+            -c:a aac -metadata creation_time="$4" "$f" && return
+    done
+    echo "failed to create $f" >&2
+    return 1
+}
+
+if (( videos > 0 )); then
+    command -v ffmpeg >/dev/null || { echo "ffmpeg not found, no videos created" >&2; exit 1; }
+    sources=(testsrc2 smptehdbars mandelbrot rgbtestsrc)
+    for ((k = 1; k <= videos; k++)); do
+        secs=$(( 2 + (k * 3) % 5 ))
+        when=$(printf "2026-11-21T17:%02d:%02dZ" $(( (k * 7) % 60 )) $(( (k * 23) % 60 )))
+        src=${sources[$(( k % ${#sources[@]} ))]}
+        if (( k % 2 )); then
+            make_video "$(printf "PXL_20261121_VID_%04d.mp4" "$k")" "$secs" $(( (k / 2) % 2 == 0 )) "$when" "$src" $(( 300 + k * 40 )) &
+        else
+            make_video "$(printf "DSC_V%04d.MOV" "$k")" "$secs" 0 "$when" "$src" $(( 300 + k * 40 )) &
+        fi
+        (( k % $(nproc) == 0 )) && wait
+    done
+    wait
+    echo "$videos videos in $dest"
+fi

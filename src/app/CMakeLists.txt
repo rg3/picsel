@@ -27,7 +27,7 @@ qt_add_qml_module(picsel
 )
 
 target_link_libraries(picsel PRIVATE
-  picsel_core
+  picsel_core picsel_media
   Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network Qt6::Test)
 
 install(TARGETS picsel RUNTIME DESTINATION bin)
