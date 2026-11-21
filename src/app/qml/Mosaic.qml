@@ -26,17 +26,20 @@ FocusScope {
     }
 
     // Scrolls just enough to show the row of |i| (with room for the zoom).
+    // Positions are relative to originY: after rows are removed above the
+    // view (e.g. a move), the GridView's content no longer starts at 0.
     function ensureVisible(i) {
         const row = Math.floor(i / columns)
-        const y = row * grid.cellHeight
+        const y = grid.originY + row * grid.cellHeight
         const pad = grid.cellHeight * (Theme.highlightScale - 1) + Theme.gap
         let target = grid.contentY
         if (y - pad < grid.contentY)
             target = y - pad
         else if (y + grid.cellHeight + pad > grid.contentY + grid.height)
             target = y + grid.cellHeight + pad - grid.height
-        const maxY = Math.max(-grid.topMargin, grid.contentHeight + grid.bottomMargin - grid.height)
-        target = Math.max(-grid.topMargin, Math.min(maxY, target))
+        const minY = grid.originY - grid.topMargin
+        const maxY = Math.max(minY, grid.originY + grid.contentHeight + grid.bottomMargin - grid.height)
+        target = Math.max(minY, Math.min(maxY, target))
         if (target !== grid.contentY) {
             scrollAnim.stop()
             scrollAnim.from = grid.contentY
@@ -48,8 +51,9 @@ FocusScope {
     function reportVisible() {
         if (grid.cellHeight <= 0)
             return
-        const firstRow = Math.max(0, Math.floor((grid.contentY) / grid.cellHeight))
-        const lastRow = Math.floor((grid.contentY + grid.height) / grid.cellHeight)
+        const top = grid.contentY - grid.originY
+        const firstRow = Math.max(0, Math.floor(top / grid.cellHeight))
+        const lastRow = Math.floor((top + grid.height) / grid.cellHeight)
         session.setVisibleRange(firstRow * columns, (lastRow + 1) * columns - 1)
     }
 
@@ -139,7 +143,7 @@ FocusScope {
         onContentYChanged: visibleTimer.restart()
         onHeightChanged: visibleTimer.restart()
         onCellWidthChanged: { sizeTimer.restart(); visibleTimer.restart() }
-        onCountChanged: visibleTimer.restart()
+        onCountChanged: { visibleTimer.restart(); reflowTimer.restart() }
 
         NumberAnimation {
             id: scrollAnim
@@ -151,6 +155,17 @@ FocusScope {
     }
 
     Timer { id: visibleTimer; interval: 16; onTriggered: root.reportVisible() }
+    // After the list shrinks (moves, deletions), pull the view back so the
+    // pictures aren't left floating mid-screen or scrolled out of sight.
+    Timer {
+        id: reflowTimer
+        interval: 50
+        onTriggered: {
+            grid.returnToBounds()
+            if (grid.count > 0)
+                root.ensureVisible(Math.max(0, grid.currentIndex))
+        }
+    }
     Timer { id: sizeTimer; interval: 150; onTriggered: root.reportThumbSize() }
 
     onColumnsChanged: Qt.callLater(() => ensureVisible(grid.currentIndex))

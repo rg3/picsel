@@ -135,6 +135,10 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 - **ffmpeg noise:** the backend is chatty. `qt.multimedia.ffmpeg*.info` is
   silenced in `main.cpp`. The h264/vaapi "No support for profile" lines come
   from libav itself (hardware decode fallback) and are harmless.
+- **GridView origin:** after rows are removed above the view (e.g. a move),
+  the GridView's `originY` is no longer 0. All scroll maths in `Mosaic.qml`
+  must be relative to `originY`, or the few remaining pictures end up
+  mid-screen or scrolled out of sight.
 - **Aggregate init:** `FileMeta` is built positionally in tests
   (`{exifTime, camera, dhash}`), so add new fields at the end.
 
@@ -146,6 +150,9 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 - **UI checks without touching the desktop:**
   `PICSEL_AUTOMATION=script.txt picsel DIR` (`src/app/Automation.*`) injects
   key and mouse events into picsel's own window and saves screenshots.
+  - Automation runs (and `PICSEL_STANDALONE=1`) skip the single-instance
+    socket. Otherwise a test launch is handed to the user's running picsel and
+    opens a window on their screen.
   - Click coordinates are *logical*. The dev machine runs at 2× scale, so
     halve screenshot pixels.
   - `QTest::mouseClick` on a QWindow did nothing on Wayland, so clicks are

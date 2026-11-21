@@ -73,11 +73,16 @@ int main(int argc, char *argv[]) {
         path = QFileInfo(path).absoluteFilePath(); // relative to our cwd, before forwarding
     }
 
-    if (picsel::Application::forwardToRunningInstance(path))
+    // Scripted/test runs stay independent: never hand the path to (or take
+    // requests from) the user's running instance.
+    const bool standalone = qEnvironmentVariableIsSet("PICSEL_AUTOMATION")
+        || qEnvironmentVariableIsSet("PICSEL_STANDALONE");
+    if (!standalone && picsel::Application::forwardToRunningInstance(path))
         return 0;
 
     picsel::Application picselApp;
-    picselApp.listen();
+    if (!standalone)
+        picselApp.listen();
     picselApp.openPath(path);
     return app.exec();
 }

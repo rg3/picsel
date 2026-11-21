@@ -23,6 +23,8 @@ qt_add_qml_module(picsel
     qml/SidePanel.qml
     qml/FullView.qml
     qml/ConfirmMoveDialog.qml
+    qml/DialogButton.qml
+    qml/PathBox.qml
     qml/ConflictDialog.qml
     qml/MoveProgressDialog.qml
     qml/CameraClocksDialog.qml
