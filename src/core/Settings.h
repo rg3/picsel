@@ -15,6 +15,8 @@ void setCameraOffset(const QString &camera, qint64 seconds);
 
 int similarSeconds();       // max time gap inside a group of similar pictures
 void setSimilarSeconds(int s);
+bool showDetails();         // EXIF details in the side panel
+void setShowDetails(bool on);
 bool showSimilar();
 void setShowSimilar(bool on);
 int similarBits();          // max dHash Hamming distance inside a group

@@ -91,82 +91,94 @@ Rectangle {
         onRejected: root.activated()
     }
 
+    component FieldLabel: Label {
+        color: Theme.textDim
+        font.pixelSize: Theme.fontSmall
+        Layout.alignment: Qt.AlignVCenter
+    }
+
+    component SmallButton: Button {
+        focusPolicy: Qt.NoFocus
+        font.pixelSize: Theme.fontSmall
+        topPadding: 3
+        bottomPadding: 3
+        leftPadding: 8
+        rightPadding: 8
+    }
+
+    component SmallCombo: ComboBox {
+        focusPolicy: Qt.NoFocus
+        font.pixelSize: Theme.fontSmall
+        Layout.fillWidth: true
+        implicitHeight: 28
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 18
+        anchors.margins: 14
         spacing: 8
 
         Flickable {
+            id: flick
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentHeight: content.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar {}
+            readonly property bool overflowing: contentHeight > height + 1
+            // Always visible when there is more to see, so it's obvious.
+            ScrollBar.vertical: ScrollBar {
+                id: vbar
+                policy: flick.overflowing ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+            }
 
             ColumnLayout {
                 id: content
-                width: parent.width
-                spacing: 8
+                width: flick.width - (flick.overflowing ? vbar.width + 6 : 0)
+                spacing: 6
 
-                SectionTitle { text: qsTr("Source") }
-                PathLabel { text: root.session.sourceDir }
-
-                SectionTitle { text: qsTr("Move selected to") }
-                RowLayout {
+                // Folders and folder settings, packed into one aligned grid.
+                GridLayout {
                     Layout.fillWidth: true
-                    PathLabel { text: root.session.targetDir }
-                    Button {
-                        text: qsTr("Change…")
-                        focusPolicy: Qt.NoFocus
-                        onClicked: targetPicker.open()
+                    columns: 3
+                    columnSpacing: 8
+                    rowSpacing: 6
+
+                    FieldLabel { text: qsTr("From") }
+                    PathLabel { text: root.session.sourceDir; Layout.columnSpan: 2; font.pixelSize: Theme.fontSmall }
+
+                    FieldLabel { text: qsTr("To") }
+                    PathLabel { text: root.session.targetDir; font.pixelSize: Theme.fontSmall }
+                    SmallButton { text: qsTr("Change…"); onClicked: targetPicker.open() }
+
+                    FieldLabel { text: qsTr("New files") }
+                    SmallCombo {
+                        Layout.columnSpan: 2
+                        model: [qsTr("start not selected"), qsTr("start selected")]
+                        currentIndex: root.session.defaultSelected ? 1 : 0
+                        onActivated: index => { root.session.defaultSelected = index === 1; root.activated() }
                     }
+
+                    FieldLabel { text: qsTr("Sort by") }
+                    SmallCombo {
+                        model: [qsTr("name"), qsTr("date taken")]
+                        currentIndex: root.session.sortMode === "date" ? 1 : 0
+                        onActivated: index => { root.session.sortMode = index === 1 ? "date" : "name"; root.activated() }
+                    }
+                    SmallButton { text: qsTr("Clocks…"); onClicked: root.cameraClocksRequested() }
                 }
 
-                SectionTitle { text: qsTr("New pictures start as") }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border; Layout.topMargin: 4 }
+
                 RowLayout {
                     Layout.fillWidth: true
-                    RadioButton {
-                        text: qsTr("Selected")
-                        focusPolicy: Qt.NoFocus
-                        checked: root.session.defaultSelected
-                        onClicked: { root.session.defaultSelected = true; root.activated() }
-                    }
-                    RadioButton {
-                        text: qsTr("Not selected")
-                        focusPolicy: Qt.NoFocus
-                        checked: !root.session.defaultSelected
-                        onClicked: { root.session.defaultSelected = false; root.activated() }
+                    SectionTitle { text: qsTr("Picture %1 of %2").arg(root.currentIndex + 1).arg(root.session.totalCount); Layout.fillWidth: true }
+                    SmallButton {
+                        text: root.session.showDetails ? qsTr("Fewer details ▴") : qsTr("More details ▾")
+                        flat: true
+                        onClicked: { root.session.showDetails = !root.session.showDetails; root.activated() }
                     }
                 }
-
-                SectionTitle { text: qsTr("Sort by") }
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 4
-                    RadioButton {
-                        text: qsTr("Name")
-                        focusPolicy: Qt.NoFocus
-                        checked: root.session.sortMode === "name"
-                        onClicked: { root.session.sortMode = "name"; root.activated() }
-                    }
-                    RadioButton {
-                        text: qsTr("Date taken")
-                        focusPolicy: Qt.NoFocus
-                        checked: root.session.sortMode === "date"
-                        onClicked: { root.session.sortMode = "date"; root.activated() }
-                    }
-                    Item { Layout.fillWidth: true }
-                    Button {
-                        text: qsTr("Camera clocks…")
-                        focusPolicy: Qt.NoFocus
-                        onClicked: root.cameraClocksRequested()
-                    }
-                }
-
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border; Layout.topMargin: 6 }
-
-                SectionTitle { text: qsTr("Picture %1 of %2").arg(root.currentIndex + 1).arg(root.session.totalCount) }
                 Label {
                     Layout.fillWidth: true
                     text: root.info.name ?? ""
@@ -180,15 +192,16 @@ Rectangle {
                     key: qsTr("Dimensions")
                     value: (root.info.width ?? 0) > 0 ? root.info.width + " × " + root.info.height : ""
                 }
-                InfoRow { key: qsTr("Taken"); value: root.info.date ?? "" }
-                InfoRow { key: qsTr("Camera"); value: root.info.camera ?? "" }
-                InfoRow { key: qsTr("Lens"); value: root.info.lens ?? "" }
-                InfoRow { key: qsTr("Exposure"); value: root.info.exposure ?? "" }
                 InfoRow { key: qsTr("Duration"); value: root.info.duration ?? "" }
                 InfoRow {
                     key: qsTr("Similar")
                     value: (root.info.groupSize ?? 0) > 1 ? qsTr("one of %1 alike pictures").arg(root.info.groupSize) : ""
                 }
+                // EXIF details, hidden by default.
+                InfoRow { key: qsTr("Taken"); value: root.session.showDetails ? (root.info.date ?? "") : "" }
+                InfoRow { key: qsTr("Camera"); value: root.session.showDetails ? (root.info.camera ?? "") : "" }
+                InfoRow { key: qsTr("Lens"); value: root.session.showDetails ? (root.info.lens ?? "") : "" }
+                InfoRow { key: qsTr("Exposure"); value: root.session.showDetails ? (root.info.exposure ?? "") : "" }
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -196,14 +209,14 @@ Rectangle {
                     spacing: 8
                     Button {
                         Layout.fillWidth: true
-                        text: qsTr("✓ Select")
+                        text: qsTr("✓ Select (S)")
                         focusPolicy: Qt.NoFocus
                         highlighted: root.info.selected === true
                         onClicked: { root.selectRequested(); root.activated() }
                     }
                     Button {
                         Layout.fillWidth: true
-                        text: qsTr("✗ Deselect")
+                        text: qsTr("✗ Deselect (D)")
                         focusPolicy: Qt.NoFocus
                         highlighted: root.info.selected === false
                         onClicked: { root.deselectRequested(); root.activated() }
@@ -280,6 +293,35 @@ Rectangle {
                 KeyRow { keys: "Space / M"; action: qsTr("video: play/pause, sound") }
                 KeyRow { keys: "+ / −"; action: qsTr("bigger / smaller thumbnails") }
                 KeyRow { keys: "Ctrl+Z"; action: qsTr("undo") }
+            }
+        }
+
+        // "More below" hint over the bottom of the scrolling area.
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 0
+            visible: flick.overflowing && !flick.atYEnd
+            z: 2
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.top
+                height: 36
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 1.0; color: Theme.panel }
+                }
+                Label {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    text: qsTr("more below ▾")
+                    color: Theme.textDim
+                    font.pixelSize: Theme.fontSmall
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: flick.contentY = flick.contentHeight - flick.height
+                }
             }
         }
 

@@ -64,11 +64,10 @@ Item {
         spacing: 12
 
         Button {
-            text: root.playing ? qsTr("❚❚ Pause") : qsTr("▶ Play")
+            Layout.preferredWidth: 170
+            text: root.playing ? qsTr("❚❚  Pause  (Space)") : qsTr("▶  Play  (Space)")
             focusPolicy: Qt.NoFocus
             onClicked: root.togglePlay()
-            ToolTip.visible: hovered
-            ToolTip.text: qsTr("Space")
         }
         Label { text: root.format(player.position); color: Theme.text }
         Slider {
@@ -82,11 +81,10 @@ Item {
         }
         Label { text: root.format(player.duration); color: Theme.text }
         Button {
-            text: root.muted ? qsTr("🔇 Muted") : qsTr("🔊 Sound")
+            Layout.preferredWidth: 170
+            text: root.muted ? qsTr("🔇  Sound off  (M)") : qsTr("🔊  Sound on  (M)")
             focusPolicy: Qt.NoFocus
             onClicked: root.muted = !root.muted
-            ToolTip.visible: hovered
-            ToolTip.text: qsTr("M")
         }
     }
 }

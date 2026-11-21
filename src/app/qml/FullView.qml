@@ -113,7 +113,9 @@ FocusScope {
             required property int thumbVersion
             required property bool isVideo
             required property string name
+            required property bool selected
             readonly property var player: videoLoader.item
+            readonly property int frameWidth: 6
 
             width: pages.width
             height: pages.height
@@ -123,7 +125,8 @@ FocusScope {
             Image {
                 id: thumb
                 anchors.fill: parent
-                anchors.bottomMargin: page.isVideo ? 52 : 0 // same area as the video
+                anchors.margins: page.frameWidth + 2              // room for the selection frame
+                anchors.bottomMargin: anchors.margins + (page.isVideo ? 52 : 0) // video: same area as the player
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 cache: false
@@ -137,6 +140,7 @@ FocusScope {
             Image {
                 id: full
                 anchors.fill: parent
+                anchors.margins: page.frameWidth + 2
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 cache: false
@@ -153,12 +157,28 @@ FocusScope {
             Loader {
                 id: videoLoader
                 anchors.fill: parent
+                anchors.margins: page.frameWidth + 2
                 active: page.isVideo && page.ListView.isCurrentItem && !pages.moving
                 sourceComponent: VideoPlayer {
                     source: root.session.fileUrl(page.index)
                     muted: root.videoMuted
                     onMutedChanged: root.videoMuted = muted
                 }
+            }
+
+            // Selection frame around the picture itself, like in the mosaic.
+            Rectangle {
+                readonly property Image ref: full.status === Image.Ready ? full : thumb
+                visible: ref.status === Image.Ready && ref.paintedWidth > 0
+                x: ref.x + (ref.width - ref.paintedWidth) / 2 - page.frameWidth
+                y: ref.y + (ref.height - ref.paintedHeight) / 2 - page.frameWidth
+                width: ref.paintedWidth + 2 * page.frameWidth
+                height: ref.paintedHeight + 2 * page.frameWidth
+                radius: 4
+                color: "transparent"
+                border.width: page.frameWidth
+                border.color: page.selected ? Theme.selected : Theme.deselected
+                Behavior on border.color { ColorAnimation { duration: Theme.animMs } }
             }
 
             BusyIndicator {
@@ -231,14 +251,19 @@ FocusScope {
             }
 
             Button {
-                text: qsTr("Select (S)")
+                text: qsTr("✓  Select  (S)")
                 focusPolicy: Qt.NoFocus
                 onClicked: { root.session.setSelected(pages.currentIndex, true); root.step(1) }
             }
             Button {
-                text: qsTr("Deselect (D)")
+                text: qsTr("✗  Deselect  (D)")
                 focusPolicy: Qt.NoFocus
                 onClicked: { root.session.setSelected(pages.currentIndex, false); root.step(1) }
+            }
+            Button {
+                text: qsTr("⇄  Toggle  (T)")
+                focusPolicy: Qt.NoFocus
+                onClicked: root.session.toggleSelected(pages.currentIndex)
             }
         }
     }

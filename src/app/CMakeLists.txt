@@ -37,3 +37,10 @@ target_link_libraries(picsel PRIVATE
   Qt6::Quick Qt6::QuickControls2 Qt6::Multimedia Qt6::Network Qt6::Test)
 
 install(TARGETS picsel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# The window icon is sent to the compositor (xdg-toplevel-icon); embed it so
+# it never depends on icon-theme lookup.
+qt_add_resources(picsel icons
+  PREFIX /icons
+  BASE ${PROJECT_SOURCE_DIR}/data
+  FILES ${PROJECT_SOURCE_DIR}/data/picsel.svg)

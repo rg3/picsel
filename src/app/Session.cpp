@@ -50,10 +50,14 @@ Session::Session(const QString &dir, QObject *parent)
             m_groupTimer.start();
     });
     connect(&m_video, &VideoThumbnailer::ready, this,
-            [this](const QString &name, const QImage &img, qint64 durationMs, QSize) {
-                if (Item *it = m_model.mutableAt(m_model.rowOf(name)); it && it->durationMs != durationMs) {
-                    it->durationMs = durationMs;
-                    m_model.notifyChanged(m_model.rowOf(name), {FileListModel::DurationRole});
+            [this](const QString &name, const QImage &img, qint64 durationMs, QSize fullSize) {
+                const int row = m_model.rowOf(name);
+                if (Item *it = m_model.mutableAt(row)) {
+                    it->dims = fullSize; // the video's size, not the thumbnail's
+                    if (it->durationMs != durationMs) {
+                        it->durationMs = durationMs;
+                        m_model.notifyChanged(row, {FileListModel::DurationRole});
+                    }
                 }
                 m_thumbs->setImage(name, img); // -> ready -> onThumbReady
             });
@@ -484,7 +488,8 @@ void Session::onThumbReady(const QString &name, QSize fullSize) {
         return;
     it->thumbVersion++;
     it->thumbFailed = false;
-    const bool dimsChanged = fullSize.isValid() && it->dims != fullSize;
+    // Videos get their real size from the thumbnailer, not from this image.
+    const bool dimsChanged = it->kind == MediaKind::Image && fullSize.isValid() && it->dims != fullSize;
     if (dimsChanged)
         it->dims = fullSize;
     m_model.notifyChanged(row, {FileListModel::ThumbVersionRole, FileListModel::ThumbFailedRole});

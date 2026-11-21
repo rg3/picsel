@@ -9,6 +9,7 @@
 #include "core/Similarity.h"
 #include "core/Mover.h"
 #include "core/SelectionDb.h"
+#include "core/Settings.h"
 #include "core/Sorting.h"
 #include "image/ImageCache.h"
 #include "image/ImageProviders.h"
@@ -41,6 +42,7 @@ class Session : public QObject {
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY canUndoChanged)
     Q_PROPERTY(bool moving READ moving NOTIFY movingChanged)
     Q_PROPERTY(bool showSimilar READ showSimilar WRITE setShowSimilar NOTIFY similarChanged)
+    Q_PROPERTY(bool showDetails READ showDetails WRITE setShowDetails NOTIFY showDetailsChanged)
     Q_PROPERTY(int similarSeconds READ similarSeconds WRITE setSimilarSeconds NOTIFY similarChanged)
     Q_PROPERTY(int similarBits READ similarBits WRITE setSimilarBits NOTIFY similarChanged)
     Q_PROPERTY(int groupCount READ groupCount NOTIFY groupsChanged)
@@ -69,6 +71,8 @@ public:
     bool canUndo() const { return !m_undo.isEmpty(); }
     bool moving() const { return m_moveJob != nullptr; }
     bool showSimilar() const { return m_showSimilar; }
+    bool showDetails() const { return settings::showDetails(); }
+    void setShowDetails(bool on) { settings::setShowDetails(on); emit showDetailsChanged(); }
     void setShowSimilar(bool on);
     int similarSeconds() const { return m_similarSeconds; }
     void setSimilarSeconds(int s);
@@ -125,6 +129,7 @@ signals:
     void errorOccurred(const QString &message);
     void movingChanged();
     void similarChanged();
+    void showDetailsChanged();
     void groupsChanged();
     void moveProgress(int done, int total, const QString &name);
     void moveConflict(const QString &name);

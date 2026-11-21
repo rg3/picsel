@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     QGuiApplication::setOrganizationName(QStringLiteral("picsel"));
     QGuiApplication::setDesktopFileName(QStringLiteral("picsel"));
     QGuiApplication::setApplicationVersion(QStringLiteral(PICSEL_VERSION));
-    QGuiApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("picsel")));
+    QGuiApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/picsel.svg")));
     picsel::initMetadataLibrary();
     // The ffmpeg media backend logs every file's streams at info level.
     QLoggingCategory::setFilterRules(QStringLiteral("qt.multimedia.ffmpeg*.info=false"));
