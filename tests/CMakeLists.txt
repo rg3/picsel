@@ -1,7 +1,9 @@
-# picsel_add_test(<name> [extra sources...]) builds tests/<name>.cpp against picsel_core.
+# picsel_add_test(<name> [extra sources...] [LIBS libs...]) builds
+# tests/<name>.cpp against picsel_core (plus LIBS).
 function(picsel_add_test name)
-  qt_add_executable(${name} ${name}.cpp ${ARGN})
-  target_link_libraries(${name} PRIVATE picsel_core Qt6::Test)
+  cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "LIBS")
+  qt_add_executable(${name} ${name}.cpp ${arg_UNPARSED_ARGUMENTS})
+  target_link_libraries(${name} PRIVATE picsel_core ${arg_LIBS} Qt6::Test)
   target_include_directories(${name} PRIVATE ${PROJECT_SOURCE_DIR}/src)
   add_test(NAME ${name} COMMAND ${name})
   set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -14,3 +16,6 @@ picsel_add_test(tst_selectiondb)
 picsel_add_test(tst_scanner_reconcile)
 picsel_add_test(tst_watcher)
 picsel_add_test(tst_similarity)
+picsel_add_test(tst_mp4info)
+picsel_add_test(tst_videothumbnailer LIBS picsel_media)
+set_tests_properties(tst_videothumbnailer PROPERTIES TIMEOUT 300)
