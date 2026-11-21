@@ -27,6 +27,7 @@ public:
         int threads = 0;           // 0 = QThread::idealThreadCount()
         qint64 budgetBytes = 3LL << 30;
         int maxDistance = -1;      // don't decode farther than this from focus (-1 = no limit)
+        bool computeHash = false;  // emit hashed() with a dHash of each decoded image
     };
 
     explicit ImageCache(Params p, QObject *parent = nullptr);
@@ -62,6 +63,7 @@ signals:
     // Emitted from worker threads; connect with the default (auto) connection.
     void ready(const QString &name, QSize fullSize);
     void failed(const QString &name);
+    void hashed(const QString &name, quint64 hash);
 
 private:
     struct Entry {

@@ -184,6 +184,10 @@ Rectangle {
                 InfoRow { key: qsTr("Camera"); value: root.info.camera ?? "" }
                 InfoRow { key: qsTr("Lens"); value: root.info.lens ?? "" }
                 InfoRow { key: qsTr("Exposure"); value: root.info.exposure ?? "" }
+                InfoRow {
+                    key: qsTr("Similar")
+                    value: (root.info.groupSize ?? 0) > 1 ? qsTr("one of %1 alike pictures").arg(root.info.groupSize) : ""
+                }
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -202,6 +206,64 @@ Rectangle {
                         focusPolicy: Qt.NoFocus
                         highlighted: root.info.selected === false
                         onClicked: { root.deselectRequested(); root.activated() }
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border; Layout.topMargin: 6 }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    SectionTitle { text: qsTr("Similar pictures"); Layout.fillWidth: true }
+                    Switch {
+                        focusPolicy: Qt.NoFocus
+                        checked: root.session.showSimilar
+                        onToggled: { root.session.showSimilar = checked; root.activated() }
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: root.session.showSimilar
+                    wrapMode: Text.Wrap
+                    color: Theme.textDim
+                    font.pixelSize: Theme.fontSmall
+                    text: root.session.groupCount === 0 ? qsTr("No groups of alike pictures found.")
+                          : root.session.groupCount === 1 ? qsTr("1 group, marked by a coloured bar under its pictures.")
+                          : qsTr("%1 groups, each marked by a coloured bar under its pictures.").arg(root.session.groupCount)
+                }
+                GridLayout {
+                    Layout.fillWidth: true
+                    visible: root.session.showSimilar
+                    columns: 3
+                    columnSpacing: 8
+                    Label { text: qsTr("Within"); color: Theme.textDim; font.pixelSize: Theme.fontSmall }
+                    Slider {
+                        Layout.fillWidth: true
+                        focusPolicy: Qt.NoFocus
+                        from: 1; to: 60; stepSize: 1
+                        value: root.session.similarSeconds
+                        onMoved: root.session.similarSeconds = value
+                        onPressedChanged: if (!pressed) root.activated()
+                    }
+                    Label {
+                        text: qsTr("%1 s").arg(root.session.similarSeconds)
+                        color: Theme.text; font.pixelSize: Theme.fontSmall
+                        Layout.preferredWidth: 40
+                    }
+                    Label { text: qsTr("Alike"); color: Theme.textDim; font.pixelSize: Theme.fontSmall }
+                    Slider {
+                        Layout.fillWidth: true
+                        focusPolicy: Qt.NoFocus
+                        // Left = strict (few differing bits), right = loose.
+                        from: 2; to: 24; stepSize: 1
+                        value: root.session.similarBits
+                        onMoved: root.session.similarBits = value
+                        onPressedChanged: if (!pressed) root.activated()
+                    }
+                    Label {
+                        text: root.session.similarBits <= 6 ? qsTr("strict")
+                              : root.session.similarBits <= 14 ? qsTr("normal") : qsTr("loose")
+                        color: Theme.text; font.pixelSize: Theme.fontSmall
+                        Layout.preferredWidth: 40
                     }
                 }
 

@@ -156,6 +156,7 @@ FocusScope {
     onColumnsChanged: Qt.callLater(() => ensureVisible(grid.currentIndex))
 
     Component.onCompleted: {
+        session.setCurrentRow(grid.currentIndex)
         reportThumbSize()
         reportVisible()
     }

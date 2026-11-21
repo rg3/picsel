@@ -173,7 +173,7 @@ Item {
                 anchors.bottomMargin: -Theme.gap / 2 - 2
                 height: 4
                 radius: 2
-                color: Qt.hsva(((tile.groupId * 0.381966) % 1.0), 0.55, 0.95, 1.0)
+                color: Theme.groupColors[tile.groupId % Theme.groupColors.length]
             }
         }
     }

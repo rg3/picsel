@@ -15,6 +15,8 @@ QtObject {
     readonly property color deselected: "#e5534b"
     readonly property color highlightRing: "#ffffff"
     readonly property color danger: "#e5534b"
+    // Similar-picture group bars: no reds or greens, which mean (de)selected.
+    readonly property var groupColors: ["#4c8dff", "#c084fc", "#f5a524", "#22d3ee", "#f472b6", "#facc15"]
 
     // Applied to every top-level window so the desktop theme (light KDE
     // palettes for buttons, fields…) never leaks into the dark UI.

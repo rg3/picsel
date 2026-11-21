@@ -4,6 +4,7 @@
 #include "FileListModel.h"
 #include "core/DirWatcher.h"
 #include "core/Metadata.h"
+#include "core/Similarity.h"
 #include "core/Mover.h"
 #include "core/SelectionDb.h"
 #include "core/Sorting.h"
@@ -37,6 +38,10 @@ class Session : public QObject {
     Q_PROPERTY(int columns READ columns WRITE setColumns NOTIFY columnsChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY canUndoChanged)
     Q_PROPERTY(bool moving READ moving NOTIFY movingChanged)
+    Q_PROPERTY(bool showSimilar READ showSimilar WRITE setShowSimilar NOTIFY similarChanged)
+    Q_PROPERTY(int similarSeconds READ similarSeconds WRITE setSimilarSeconds NOTIFY similarChanged)
+    Q_PROPERTY(int similarBits READ similarBits WRITE setSimilarBits NOTIFY similarChanged)
+    Q_PROPERTY(int groupCount READ groupCount NOTIFY groupsChanged)
 
 public:
     explicit Session(const QString &dir, QObject *parent = nullptr);
@@ -61,6 +66,13 @@ public:
     void setColumns(int n);
     bool canUndo() const { return !m_undo.isEmpty(); }
     bool moving() const { return m_moveJob != nullptr; }
+    bool showSimilar() const { return m_showSimilar; }
+    void setShowSimilar(bool on);
+    int similarSeconds() const { return m_similarSeconds; }
+    void setSimilarSeconds(int s);
+    int similarBits() const { return m_similarBits; }
+    void setSimilarBits(int b);
+    int groupCount() const { return m_groupCount; }
 
     // Checks the selected files against the target folder. Returns
     // {count, total, target, fatal, blocked: [names], conflicts: [names]}.
@@ -107,6 +119,8 @@ signals:
     void itemInfoChanged(int row);
     void errorOccurred(const QString &message);
     void movingChanged();
+    void similarChanged();
+    void groupsChanged();
     void moveProgress(int done, int total, const QString &name);
     void moveConflict(const QString &name);
     // Summary of a finished move, for the result message.
@@ -126,6 +140,7 @@ private:
     void startMetadataScan();
     void scheduleMetadata(const QStringList &names);
     void onFileAdded(const picsel::DiskFile &f);
+    void recomputeGroups();
     void onFileRemoved(const QString &name);
     void onFileRenamed(const QString &from, const picsel::DiskFile &to);
     void onFileChanged(const picsel::DiskFile &f);
@@ -166,6 +181,12 @@ private:
     QTimer m_resortTimer;
     QPointer<MoveJob> m_moveJob;
     DirWatcher m_watcher;
+    QHash<QString, quint64> m_hashes;
+    QTimer m_groupTimer;
+    bool m_showSimilar = true;
+    int m_similarSeconds = 10;
+    int m_similarBits = 10;
+    int m_groupCount = 0;
     QStringList m_pendingRemovals;   // moved files to drop from DB + model
     QTimer m_removalTimer;
     QThreadPool m_metaPool; // last: destroyed (and joined) first

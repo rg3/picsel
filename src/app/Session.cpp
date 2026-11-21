@@ -28,6 +28,7 @@ Session::Session(const QString &dir, QObject *parent)
     ImageCache::Params tp;
     tp.quality = DecodeQuality::Fast;
     tp.budgetBytes = 4LL << 30;
+    tp.computeHash = true;
     m_thumbs = std::make_shared<ImageCache>(tp);
 
     ImageCache::Params fp;
@@ -42,6 +43,17 @@ Session::Session(const QString &dir, QObject *parent)
     m_full->setDirectory(m_dir);
     connect(m_thumbs.get(), &ImageCache::ready, this, &Session::onThumbReady);
     connect(m_thumbs.get(), &ImageCache::failed, this, &Session::onThumbFailed);
+    connect(m_thumbs.get(), &ImageCache::hashed, this, [this](const QString &name, quint64 h) {
+        m_hashes.insert(name, h);
+        if (!m_groupTimer.isActive())
+            m_groupTimer.start();
+    });
+    m_showSimilar = settings::showSimilar();
+    m_similarSeconds = settings::similarSeconds();
+    m_similarBits = settings::similarBits();
+    m_groupTimer.setSingleShot(true);
+    m_groupTimer.setInterval(300);
+    connect(&m_groupTimer, &QTimer::timeout, this, &Session::recomputeGroups);
 
     m_columns = settings::columns();
     m_metaPool.setMaxThreadCount(4);
@@ -238,6 +250,7 @@ void Session::rebuildCacheOrder() {
     }
     m_thumbs->setFiles(names, decodable);
     m_full->setFiles(names, decodable);
+    m_groupTimer.start(); // order or membership changed
 }
 
 void Session::recountSelected() {
@@ -368,6 +381,11 @@ QVariantMap Session::info(int row) const {
     const PhotoInfo details = m_details.value(it->name);
     m[QStringLiteral("lens")] = details.lens;
     m[QStringLiteral("exposure")] = details.exposure;
+    int groupSize = 0;
+    if (it->groupId >= 0)
+        for (const Item &other : m_model.items())
+            groupSize += other.groupId == it->groupId ? 1 : 0;
+    m[QStringLiteral("groupSize")] = groupSize;
     return m;
 }
 
@@ -534,6 +552,7 @@ void Session::removeItem(const QString &name) {
     m_model.removeRow(row);
     m_uids->remove(uid);
     m_details.remove(name);
+    m_hashes.remove(name);
     m_pendingMeta.remove(name);
     if (wasCurrent) {
         const Item *next = m_model.at(std::min(row, m_model.count() - 1));
@@ -622,6 +641,8 @@ void Session::onFileRenamed(const QString &from, const DiskFile &to) {
     m_uids->set(it->uid, to.name);
     if (m_details.contains(from))
         m_details.insert(to.name, m_details.take(from));
+    if (m_hashes.contains(from))
+        m_hashes.insert(to.name, m_hashes.take(from));
     if (m_currentName == from)
         m_currentName = to.name;
     const int newRow = m_model.resort(row, m_sortMode);
@@ -661,6 +682,70 @@ void Session::onRescanNeeded() {
     loadFiles();
     const int row = m_model.rowOf(m_currentName);
     emit highlightRequested(row >= 0 ? row : 0);
+}
+
+// --- Similar pictures ------------------------------------------------------
+
+void Session::setShowSimilar(bool on) {
+    if (on == m_showSimilar)
+        return;
+    m_showSimilar = on;
+    settings::setShowSimilar(on);
+    emit similarChanged();
+    recomputeGroups();
+}
+
+void Session::setSimilarSeconds(int s) {
+    s = std::clamp(s, 0, 3600);
+    if (s == m_similarSeconds)
+        return;
+    m_similarSeconds = s;
+    settings::setSimilarSeconds(s);
+    emit similarChanged();
+    m_groupTimer.start();
+}
+
+void Session::setSimilarBits(int b) {
+    b = std::clamp(b, 0, 32);
+    if (b == m_similarBits)
+        return;
+    m_similarBits = b;
+    settings::setSimilarBits(b);
+    emit similarChanged();
+    m_groupTimer.start();
+}
+
+void Session::recomputeGroups() {
+    const QVector<Item> &items = m_model.items();
+    QVector<int> groups(items.size(), -1);
+    if (m_showSimilar) {
+        QVector<SimilarityInput> in;
+        in.reserve(items.size());
+        for (const Item &it : items) {
+            auto h = m_hashes.constFind(it.name);
+            in.push_back({h == m_hashes.constEnd() ? std::nullopt : std::optional<quint64>(*h), it.sortTimeMs});
+        }
+        groups = similarityGroups(in, m_similarBits, m_similarSeconds);
+    }
+    bool changed = false;
+    int count = 0;
+    for (int row = 0; row < items.size(); ++row) {
+        Item *it = m_model.mutableAt(row);
+        if (it->groupId != groups[row]) {
+            it->groupId = groups[row];
+            changed = true;
+        }
+        count = std::max(count, groups[row] + 1);
+    }
+    if (changed) {
+        m_model.notifyAllChanged({FileListModel::GroupIdRole, FileListModel::GroupStartRole,
+                                  FileListModel::GroupEndRole});
+        emit itemInfoChanged(m_model.rowOf(m_currentName));
+    }
+    if (count != m_groupCount) {
+        m_groupCount = count;
+        emit groupsChanged();
+    }
 }
 
 } // namespace picsel

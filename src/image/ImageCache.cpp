@@ -1,5 +1,7 @@
 #include "ImageCache.h"
 
+#include "core/Similarity.h"
+
 #include <QDeadlineTimer>
 #include <QDir>
 #include <QThread>
@@ -247,6 +249,7 @@ void ImageCache::runJob(const QString &name, QSize box, quint64 epoch) {
         path = QDir(m_dir).filePath(name);
     }
     std::optional<DecodedImage> result = decodeImage(path, box, m_params.quality);
+    const quint64 hash = (result && m_params.computeHash) ? dHash(result->image) : 0;
 
     QSize fullSize;
     bool ok = false;
@@ -274,6 +277,8 @@ void ImageCache::runJob(const QString &name, QSize box, quint64 epoch) {
         if (!valid)
             return;
     }
+    if (ok && m_params.computeHash)
+        emit hashed(name, hash);
     if (ok)
         emit ready(name, fullSize);
     else

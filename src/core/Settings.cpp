@@ -52,6 +52,8 @@ void setCameraOffset(const QString &camera, qint64 seconds) {
 
 int similarSeconds() { return store().value(QStringLiteral("similar/seconds"), 10).toInt(); }
 void setSimilarSeconds(int v) { store().setValue(QStringLiteral("similar/seconds"), v); }
+bool showSimilar() { return store().value(QStringLiteral("similar/show"), true).toBool(); }
+void setShowSimilar(bool on) { store().setValue(QStringLiteral("similar/show"), on); }
 int similarBits() { return store().value(QStringLiteral("similar/bits"), 10).toInt(); }
 void setSimilarBits(int v) { store().setValue(QStringLiteral("similar/bits"), v); }
 

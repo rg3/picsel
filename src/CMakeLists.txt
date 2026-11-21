@@ -7,6 +7,7 @@ add_library(picsel_core STATIC
   core/Settings.cpp core/Settings.h
   core/Metadata.cpp core/Metadata.h
   core/Mover.cpp core/Mover.h
+  core/Similarity.cpp core/Similarity.h
   image/JpegDecoder.cpp image/JpegDecoder.h
   image/ImageCache.cpp image/ImageCache.h
 )
