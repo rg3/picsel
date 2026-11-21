@@ -30,10 +30,10 @@ inline constexpr const char *SortMode = "sort_mode";
 
 // Cached per-file metadata. Valid only while size/mtime match the file.
 struct FileMeta {
-    bool scanned = false; // false until metadata was read for the current file contents
     QString exifTime;   // "YYYY-MM-DDTHH:MM:SS[.fff]" local camera time, empty if none
     QString camera;     // "Make Model", empty if unknown
     std::optional<quint64> dhash;
+    bool scanned = false; // false until metadata was read for the current file contents
 };
 
 struct DbFile {
