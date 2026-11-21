@@ -26,6 +26,7 @@ qt_add_qml_module(picsel
     qml/ConflictDialog.qml
     qml/MoveProgressDialog.qml
     qml/CameraClocksDialog.qml
+    qml/VideoPlayer.qml
     qml/SetupWindow.qml
     qml/FolderPicker.qml
     qml/ErrorWindow.qml

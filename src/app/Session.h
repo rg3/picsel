@@ -4,6 +4,8 @@
 #include "FileListModel.h"
 #include "core/DirWatcher.h"
 #include "core/Metadata.h"
+#include "core/Mp4Info.h"
+#include "image/VideoThumbnailer.h"
 #include "core/Similarity.h"
 #include "core/Mover.h"
 #include "core/SelectionDb.h"
@@ -98,6 +100,7 @@ public:
     Q_INVOKABLE int undo();
     Q_INVOKABLE bool setTargetDir(const QString &pathOrUrl);
     Q_INVOKABLE QVariantMap info(int row) const;
+    Q_INVOKABLE QUrl fileUrl(int row) const;
 
     // View feedback, used to prioritise decoding.
     Q_INVOKABLE void setThumbBox(int w, int h);
@@ -141,6 +144,7 @@ private:
     void scheduleMetadata(const QStringList &names);
     void onFileAdded(const picsel::DiskFile &f);
     void recomputeGroups();
+    void requestVideoThumbs();
     void onFileRemoved(const QString &name);
     void onFileRenamed(const QString &from, const picsel::DiskFile &to);
     void onFileChanged(const picsel::DiskFile &f);
@@ -181,6 +185,8 @@ private:
     QTimer m_resortTimer;
     QPointer<MoveJob> m_moveJob;
     DirWatcher m_watcher;
+    VideoThumbnailer m_video;
+    QSize m_thumbBox;
     QHash<QString, quint64> m_hashes;
     QTimer m_groupTimer;
     bool m_showSimilar = true;

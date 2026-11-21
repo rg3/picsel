@@ -12,6 +12,7 @@ FocusScope {
     required property Session session
     property int startIndex: 0
     readonly property int currentIndex: pages.currentIndex
+    property bool videoMuted: true   // remembered while the full view is open
 
     signal closeRequested()
     signal indexChangedByUser(int index)
@@ -39,6 +40,14 @@ FocusScope {
         switch (event.key) {
         case Qt.Key_Left: step(-1); break
         case Qt.Key_Right: step(1); break
+        case Qt.Key_Space:
+            if (pages.currentItem && pages.currentItem.player)
+                pages.currentItem.player.togglePlay()
+            break
+        case Qt.Key_M:
+            if (pages.currentItem && pages.currentItem.isVideo)
+                root.videoMuted = !root.videoMuted
+            break
         case Qt.Key_Escape:
         case Qt.Key_Return:
         case Qt.Key_Enter: root.closeRequested(); break
@@ -104,6 +113,7 @@ FocusScope {
             required property int thumbVersion
             required property bool isVideo
             required property string name
+            readonly property var player: videoLoader.item
 
             width: pages.width
             height: pages.height
@@ -113,6 +123,7 @@ FocusScope {
             Image {
                 id: thumb
                 anchors.fill: parent
+                anchors.bottomMargin: page.isVideo ? 52 : 0 // same area as the video
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 cache: false
@@ -120,7 +131,7 @@ FocusScope {
                 source: page.thumbVersion > 0
                         ? "image://thumb/%1/%2/%3".arg(root.session.sessionId).arg(page.uid).arg(page.thumbVersion)
                         : ""
-                visible: full.status !== Image.Ready || full.opacity < 1
+                visible: (full.status !== Image.Ready || full.opacity < 1) && !(videoLoader.item && videoLoader.item.playing)
             }
 
             Image {
@@ -136,6 +147,18 @@ FocusScope {
                         : "image://full/%1/%2/%3".arg(root.session.sessionId).arg(page.uid).arg(page.thumbVersion)
                 opacity: status === Image.Ready ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 120 } }
+            }
+
+            // Only the current page plays video; others show the thumbnail.
+            Loader {
+                id: videoLoader
+                anchors.fill: parent
+                active: page.isVideo && page.ListView.isCurrentItem && !pages.moving
+                sourceComponent: VideoPlayer {
+                    source: root.session.fileUrl(page.index)
+                    muted: root.videoMuted
+                    onMutedChanged: root.videoMuted = muted
+                }
             }
 
             BusyIndicator {

@@ -184,6 +184,7 @@ Rectangle {
                 InfoRow { key: qsTr("Camera"); value: root.info.camera ?? "" }
                 InfoRow { key: qsTr("Lens"); value: root.info.lens ?? "" }
                 InfoRow { key: qsTr("Exposure"); value: root.info.exposure ?? "" }
+                InfoRow { key: qsTr("Duration"); value: root.info.duration ?? "" }
                 InfoRow {
                     key: qsTr("Similar")
                     value: (root.info.groupSize ?? 0) > 1 ? qsTr("one of %1 alike pictures").arg(root.info.groupSize) : ""
@@ -276,6 +277,7 @@ Rectangle {
                 KeyRow { keys: "Home / End"; action: qsTr("first / last") }
                 KeyRow { keys: "PgUp / PgDn"; action: qsTr("page up / down") }
                 KeyRow { keys: "Enter"; action: qsTr("full view (Esc closes)") }
+                KeyRow { keys: "Space / M"; action: qsTr("video: play/pause, sound") }
                 KeyRow { keys: "+ / −"; action: qsTr("bigger / smaller thumbnails") }
                 KeyRow { keys: "Ctrl+Z"; action: qsTr("undo") }
             }

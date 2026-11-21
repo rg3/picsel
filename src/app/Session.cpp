@@ -10,6 +10,7 @@
 #include <QMap>
 #include <QTimeZone>
 #include <QUrl>
+#include <QFileInfo>
 
 #include <algorithm>
 
@@ -48,6 +49,16 @@ Session::Session(const QString &dir, QObject *parent)
         if (!m_groupTimer.isActive())
             m_groupTimer.start();
     });
+    connect(&m_video, &VideoThumbnailer::ready, this,
+            [this](const QString &name, const QImage &img, qint64 durationMs, QSize) {
+                if (Item *it = m_model.mutableAt(m_model.rowOf(name)); it && it->durationMs != durationMs) {
+                    it->durationMs = durationMs;
+                    m_model.notifyChanged(m_model.rowOf(name), {FileListModel::DurationRole});
+                }
+                m_thumbs->setImage(name, img); // -> ready -> onThumbReady
+            });
+    connect(&m_video, &VideoThumbnailer::failed, this,
+            [this](const QString &name, const QString &) { onThumbFailed(name); });
     m_showSimilar = settings::showSimilar();
     m_similarSeconds = settings::similarSeconds();
     m_similarBits = settings::similarBits();
@@ -154,6 +165,7 @@ bool Session::loadFiles() {
     recountSelected();
     rebuildCacheOrder();
     startMetadataScan();
+    requestVideoThumbs();
     return true;
 }
 
@@ -168,12 +180,26 @@ void Session::startMetadataScan() {
 void Session::scheduleMetadata(const QStringList &names) {
     for (const QString &name : names) {
         const Item *it = m_model.at(m_model.rowOf(name));
-        if (!it || it->kind != MediaKind::Image)
+        if (!it)
             continue;
         const QString path = QDir(m_dir).filePath(name);
         const qint64 size = it->size, mtime = it->mtimeNs;
-        m_metaPool.start([this, name, path, size, mtime] {
-            const PhotoInfo info = readPhotoInfo(path).value_or(PhotoInfo{});
+        const bool video = it->kind == MediaKind::Video;
+        m_metaPool.start([this, name, path, size, mtime, video] {
+            PhotoInfo info;
+            if (!video) {
+                info = readPhotoInfo(path).value_or(PhotoInfo{});
+            } else if (auto v = readMp4Info(path)) {
+                // Videos have no camera model; group them per container so
+                // their clock can be corrected like a camera's.
+                info.exifTime = v->creationLocal;
+                info.camera = QStringLiteral("Videos (%1)").arg(QFileInfo(name).suffix().toUpper());
+                info.size = v->size;
+                if (v->durationMs >= 0) {
+                    const qint64 s = (v->durationMs + 500) / 1000;
+                    info.exposure = QStringLiteral("%1:%2").arg(s / 60).arg(s % 60, 2, 10, QLatin1Char('0'));
+                }
+            }
             QMetaObject::invokeMethod(this, [this, name, size, mtime, info] {
                 onMetadataRead(name, size, mtime, info);
             }, Qt::QueuedConnection);
@@ -380,7 +406,12 @@ QVariantMap Session::info(int row) const {
     m[QStringLiteral("date")] = date;
     const PhotoInfo details = m_details.value(it->name);
     m[QStringLiteral("lens")] = details.lens;
-    m[QStringLiteral("exposure")] = details.exposure;
+    m[QStringLiteral("exposure")] = it->kind == MediaKind::Video ? QString() : details.exposure;
+    m[QStringLiteral("duration")] = it->kind == MediaKind::Video ? details.exposure : QString();
+    if (it->kind == MediaKind::Video && it->dims.isEmpty() && details.size.isValid()) {
+        m[QStringLiteral("width")] = details.size.width();
+        m[QStringLiteral("height")] = details.size.height();
+    }
     int groupSize = 0;
     if (it->groupId >= 0)
         for (const Item &other : m_model.items())
@@ -390,11 +421,32 @@ QVariantMap Session::info(int row) const {
 }
 
 void Session::setThumbBox(int w, int h) {
-    m_thumbs->setTargetSize(QSize(w, h));
+    const QSize box(w, h);
+    const bool bigger = !m_thumbBox.isValid() || w > m_thumbBox.width() * 1.1 || h > m_thumbBox.height() * 1.1;
+    m_thumbBox = box;
+    m_thumbs->setTargetSize(box);
+    if (bigger)
+        requestVideoThumbs();
+}
+
+void Session::requestVideoThumbs() {
+    if (!m_thumbBox.isValid())
+        return;
+    for (const Item &it : m_model.items())
+        if (it.kind == MediaKind::Video)
+            m_video.request(it.name, QDir(m_dir).filePath(it.name), m_thumbBox);
 }
 
 void Session::setVisibleRange(int first, int last) {
     m_thumbs->setFocus(first, last);
+    for (int row = std::min(last, m_model.count() - 1); row >= std::max(0, first); --row)
+        if (const Item *it = m_model.at(row); it->kind == MediaKind::Video && it->thumbVersion == 0)
+            m_video.prioritize(it->name);
+}
+
+QUrl Session::fileUrl(int row) const {
+    const Item *it = m_model.at(row);
+    return it ? QUrl::fromLocalFile(QDir(m_dir).filePath(it->name)) : QUrl();
 }
 
 void Session::setFullBox(int w, int h) {
@@ -598,6 +650,8 @@ void Session::onFileAdded(const DiskFile &f) {
     }
     m_model.insertSorted(makeItem(d), m_sortMode);
     scheduleCacheOrder();
+    if (mediaKindForName(f.name) == MediaKind::Video && m_thumbBox.isValid())
+        m_video.request(f.name, QDir(m_dir).filePath(f.name), m_thumbBox);
     recountSelected();
     scheduleMetadata({f.name});
     // Keep the highlight on the same picture if rows shifted under it.
@@ -649,6 +703,10 @@ void Session::onFileRenamed(const QString &from, const DiskFile &to) {
     m_model.notifyChanged(newRow, {});
     // The caches are keyed by name: the picture is decoded again under its new name.
     scheduleCacheOrder();
+    if (it->kind == MediaKind::Video && m_thumbBox.isValid()) {
+        m_video.cancel(from);
+        m_video.request(to.name, QDir(m_dir).filePath(to.name), m_thumbBox);
+    }
     recountSelected();
     emit itemInfoChanged(newRow);
     const int cur = m_model.rowOf(m_currentName);
@@ -670,6 +728,8 @@ void Session::onFileChanged(const DiskFile &f) {
     it->meta.scanned = false;
     m_thumbs->invalidate(f.name);
     m_full->invalidate(f.name);
+    if (it->kind == MediaKind::Video && m_thumbBox.isValid())
+        m_video.request(f.name, QDir(m_dir).filePath(f.name), m_thumbBox);
     scheduleMetadata({f.name});
     emit itemInfoChanged(row);
 }
