@@ -117,6 +117,14 @@ private slots:
         QCOMPARE(chooseScaleDenom(QSize(6000, 4000), QSize()), 1);
     }
 
+    void exifOffsetNearFourGigabytes() {
+        // IFD0 offset 0xFFFFFFFE must not wrap the bounds check.
+        const QByteArray app1 = QByteArray("Exif\0\0MM\0\x2a\xff\xff\xff\xfe", 14) + QByteArray(16, 0);
+        QCOMPARE(parseExifOrientation(reinterpret_cast<const uchar *>(app1.constData()), size_t(app1.size())), 1);
+        const QByteArray le = QByteArray("Exif\0\0II\x2a\0\xff\xff\xff\xff", 14) + QByteArray(16, 0);
+        QCOMPARE(parseExifOrientation(reinterpret_cast<const uchar *>(le.constData()), size_t(le.size())), 1);
+    }
+
     void rejectsGarbage() {
         const QByteArray junk("\xff\xd8 not really a jpeg", 21);
         QVERIFY(!decodeJpegData(reinterpret_cast<const uchar *>(junk.constData()), size_t(junk.size()),

@@ -54,10 +54,21 @@ QHash<int, QByteArray> FileListModel::roleNames() const {
 }
 
 int FileListModel::rowOf(const QString &name) const {
-    for (int i = 0; i < m_items.size(); ++i)
-        if (m_items[i].name == name)
-            return i;
-    return -1;
+    if (m_indexDirty) {
+        m_index.clear();
+        m_index.reserve(m_items.size());
+        for (int i = 0; i < m_items.size(); ++i)
+            m_index.insert(m_items[i].name, i);
+        m_indexDirty = false;
+    }
+    return m_index.value(name, -1);
+}
+
+void FileListModel::setName(int row, const QString &name) {
+    if (row < 0 || row >= m_items.size())
+        return;
+    m_items[row].name = name;
+    invalidateIndex();
 }
 
 int FileListModel::rowOfUid(quint32 uid) const {
@@ -70,6 +81,7 @@ int FileListModel::rowOfUid(quint32 uid) const {
 void FileListModel::reset(QVector<Item> items) {
     beginResetModel();
     m_items = std::move(items);
+    invalidateIndex();
     endResetModel();
     emit countChanged();
 }
@@ -95,6 +107,7 @@ int FileListModel::insertSorted(Item item, SortMode mode) {
     const int pos = sortedPosition(item, mode, -1);
     beginInsertRows({}, pos, pos);
     m_items.insert(pos, std::move(item));
+    invalidateIndex();
     endInsertRows();
     // Neighbours' group start/end flags may change.
     if (pos > 0)
@@ -110,6 +123,7 @@ void FileListModel::removeRow(int row) {
         return;
     beginRemoveRows({}, row, row);
     m_items.removeAt(row);
+    invalidateIndex();
     endRemoveRows();
     if (row > 0)
         notifyChanged(row - 1, {GroupEndRole});
@@ -127,6 +141,7 @@ int FileListModel::resort(int row, SortMode mode) {
         const int dest = pos > row ? pos + 1 : pos;
         beginMoveRows({}, row, row, {}, dest);
         m_items.move(row, pos);
+        invalidateIndex();
         endMoveRows();
     }
     notifyChanged(pos, {});

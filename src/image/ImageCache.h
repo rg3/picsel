@@ -55,6 +55,10 @@ public:
     QImage waitFor(const QString &name, int timeoutMs);
 
     void invalidate(const QString &name);
+    // Forgets |name| (file deleted, or replaced by another file of that name).
+    void remove(const QString &name);
+    // Forgets every image (keeps the file list).
+    void clear();
     void setImage(const QString &name, const QImage &img);
     qint64 bytesUsed() const;
     int pendingCount() const;
@@ -72,13 +76,15 @@ private:
         bool decodable = true;
         bool inFlight = false;
         bool failed = false;
+        quint32 gen = 0;   // bumped when the entry is reset; stale decodes are dropped
     };
 
     bool needsWork(const Entry &e) const;
     int distance(int index) const;
     void pumpLocked();
     QString pickNextLocked();
-    void runJob(const QString &name, QSize box, quint64 epoch);
+    void runJob(const QString &name, QSize box, quint64 epoch, quint32 gen);
+    void resetEntryLocked(Entry &e);
     static qint64 bytesOf(const QImage &img) { return img.sizeInBytes(); }
 
     Params m_params;

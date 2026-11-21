@@ -60,6 +60,8 @@ public:
     Item *mutableAt(int row) { return row >= 0 && row < m_items.size() ? &m_items[row] : nullptr; }
     int rowOf(const QString &name) const;
     int rowOfUid(quint32 uid) const;
+    // Renames the item in |row| (keeps the name index in sync).
+    void setName(int row, const QString &name);
 
     void reset(QVector<Item> items);
     // Inserts keeping the sort order; returns the row.
@@ -75,7 +77,11 @@ signals:
 
 private:
     int sortedPosition(const Item &item, SortMode mode, int skipRow) const;
+    void invalidateIndex() { m_indexDirty = true; }
+
     QVector<Item> m_items;
+    mutable QHash<QString, int> m_index; // name -> row, rebuilt lazily
+    mutable bool m_indexDirty = true;
 };
 
 SortKey sortKeyOf(const Item &item);

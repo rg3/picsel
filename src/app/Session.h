@@ -90,6 +90,8 @@ public:
     Q_INVOKABLE void setCameraOffset(const QString &camera, qint64 seconds);
     // Re-reads global camera offsets (e.g. changed in another window).
     void reloadCameraOffsets();
+    // Emitted after this session changed a (global) camera offset.
+    Q_SIGNAL void cameraOffsetsEdited();
 
     Q_INVOKABLE int rowOf(const QString &name) const { return m_model.rowOf(name); }
     // The view's highlighted row; kept across re-sorts and list changes.
@@ -187,6 +189,7 @@ private:
     DirWatcher m_watcher;
     VideoThumbnailer m_video;
     QSize m_thumbBox;
+    CameraOffsets m_offsets;
     QHash<QString, quint64> m_hashes;
     QTimer m_groupTimer;
     bool m_showSimilar = true;

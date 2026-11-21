@@ -86,8 +86,8 @@ int parseExifOrientation(const uchar *p, size_t len) {
         return 1;
     if (rd16(tiff + 2, le) != 42)
         return 1;
-    const quint32 ifd = rd32(tiff + 4, le);
-    if (ifd + 2 > tlen)
+    const size_t ifd = rd32(tiff + 4, le);
+    if (ifd + 2 > tlen) // size_t: no wrap-around for offsets near 4 GB
         return 1;
     const quint16 count = rd16(tiff + ifd, le);
     for (quint32 i = 0; i < count; ++i) {
@@ -209,18 +209,16 @@ std::optional<DecodedImage> decodeJpegData(const uchar *data, size_t len, QSize 
 }
 
 std::optional<DecodedImage> decodeImage(const QString &path, QSize box, DecodeQuality q) {
+    // Read into memory rather than mmap: if another program truncates the
+    // file mid-decode, a mapping would kill the process with SIGBUS.
     QFile f(path);
     if (f.open(QIODevice::ReadOnly)) {
-        const qint64 size = f.size();
-        if (size > 4) {
-            if (uchar *map = f.map(0, size)) {
-                std::optional<DecodedImage> r;
-                if (map[0] == 0xFF && map[1] == 0xD8)
-                    r = decodeJpegData(map, size_t(size), box, q);
-                f.unmap(map);
-                if (r)
-                    return r;
-            }
+        char magic[2];
+        if (f.peek(magic, 2) == 2 && uchar(magic[0]) == 0xFF && uchar(magic[1]) == 0xD8) {
+            const QByteArray data = f.readAll();
+            if (auto r = decodeJpegData(reinterpret_cast<const uchar *>(data.constData()),
+                                        size_t(data.size()), box, q))
+                return r;
         }
     }
     return decodeWithQt(path, box);

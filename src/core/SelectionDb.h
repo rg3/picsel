@@ -66,7 +66,9 @@ public:
     QString config(const QString &key, const QString &fallback = {}) const;
     bool setConfig(const QString &key, const QString &value);
 
-    QVector<DbFile> files() const;
+    // All rows. |ok| (optional) is false if reading stopped on an error, in
+    // which case the list is incomplete and must not be reconciled against.
+    QVector<DbFile> files(bool *ok = nullptr) const;
     bool insertFile(const DbFile &f);
     bool removeFile(const QString &name);
     bool renameFile(const QString &from, const QString &to);

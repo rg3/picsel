@@ -132,6 +132,33 @@ void ImageCache::invalidate(const QString &name) {
     pumpLocked();
 }
 
+void ImageCache::remove(const QString &name) {
+    QMutexLocker lock(&m_mutex);
+    auto it = m_entries.find(name);
+    if (it == m_entries.end())
+        return;
+    resetEntryLocked(*it);
+    pumpLocked();
+}
+
+void ImageCache::clear() {
+    QMutexLocker lock(&m_mutex);
+    for (Entry &e : m_entries)
+        resetEntryLocked(e);
+    pumpLocked();
+}
+
+void ImageCache::resetEntryLocked(Entry &e) {
+    // A decode still in flight for the old contents is dropped when it lands
+    // (generation mismatch); the entry can be scheduled again right away.
+    m_bytes -= bytesOf(e.img);
+    e.img = QImage();
+    e.decodedFor = QSize();
+    e.inFlight = false;
+    e.failed = false;
+    ++e.gen;
+}
+
 void ImageCache::setImage(const QString &name, const QImage &img) {
     {
         QMutexLocker lock(&m_mutex);
@@ -212,7 +239,8 @@ QString ImageCache::pickNextLocked() {
         int far = -1, farDist = -1;
         for (int i = 0; i < n; ++i) {
             const Entry &e = m_entries[m_order[i]];
-            if (!e.img.isNull() && !e.inFlight && distance(i) > farDist) {
+            // Non-decodable entries (video frames) can't be recreated here.
+            if (!e.img.isNull() && !e.inFlight && e.decodable && distance(i) > farDist) {
                 far = i;
                 farDist = distance(i);
             }
@@ -234,15 +262,17 @@ void ImageCache::pumpLocked() {
         const QString name = pickNextLocked();
         if (name.isEmpty())
             return;
-        m_entries[name].inFlight = true;
+        Entry &e = m_entries[name];
+        e.inFlight = true;
         ++m_active;
         const QSize box = m_box;
         const quint64 epoch = m_epoch;
-        m_pool.start([this, name, box, epoch] { runJob(name, box, epoch); });
+        const quint32 gen = e.gen;
+        m_pool.start([this, name, box, epoch, gen] { runJob(name, box, epoch, gen); });
     }
 }
 
-void ImageCache::runJob(const QString &name, QSize box, quint64 epoch) {
+void ImageCache::runJob(const QString &name, QSize box, quint64 epoch, quint32 gen) {
     QString path;
     {
         QMutexLocker lock(&m_mutex);
@@ -259,7 +289,7 @@ void ImageCache::runJob(const QString &name, QSize box, quint64 epoch) {
         if (m_stopping)
             return;
         auto it = m_entries.find(name);
-        const bool valid = epoch == m_epoch && it != m_entries.end();
+        const bool valid = epoch == m_epoch && it != m_entries.end() && it->gen == gen;
         if (valid) {
             it->inFlight = false;
             if (result) {

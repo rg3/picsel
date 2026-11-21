@@ -62,6 +62,7 @@ private:
     QLocalServer m_server;
     QVector<Open> m_open;
     int m_pendingWindows = 0; // setup/picker/error windows currently shown
+    QHash<QString, QPointer<QQuickWindow>> m_setupWindows; // by source folder
 };
 
 } // namespace picsel

@@ -63,15 +63,24 @@ bool Application::forwardToRunningInstance(const QString &path) {
     sock.write(QJsonDocument(msg).toJson(QJsonDocument::Compact) + '\n');
     if (!sock.waitForBytesWritten(1000))
         return false;
-    // Wait for the acknowledgement so we know it was handled.
-    return sock.waitForReadyRead(2000) && sock.readAll().startsWith("ok");
+    // Wait for the acknowledgement so we know it was handled. Generous: the
+    // running instance may be busy for a moment (e.g. opening a big folder).
+    return sock.waitForReadyRead(10000) && sock.readAll().startsWith("ok");
 }
 
 bool Application::listen() {
     m_server.setSocketOptions(QLocalServer::UserAccessOption);
     if (m_server.listen(serverName()))
         return true;
-    QLocalServer::removeServer(serverName()); // stale socket from a crash
+    // Only remove the socket if nobody answers on it (left over from a crash);
+    // never take it over from a live instance.
+    QLocalSocket probe;
+    probe.connectToServer(serverName());
+    if (probe.waitForConnected(300)) {
+        qWarning("picsel: another instance owns the socket; running on our own");
+        return false;
+    }
+    QLocalServer::removeServer(serverName());
     return m_server.listen(serverName());
 }
 
@@ -120,6 +129,11 @@ void Application::openPath(const QString &path, const QByteArray &token) {
                 o.session->requestHighlight(highlight);
             return;
         }
+    }
+
+    if (auto it = m_setupWindows.constFind(dir); it != m_setupWindows.constEnd() && *it) {
+        raise(*it, token); // already asking how to set this folder up
+        return;
     }
 
     if (SelectionDb::existsIn(dir)) {
@@ -175,15 +189,21 @@ void Application::showSetup(const QString &dir, const QString &highlight) {
         {QStringLiteral("targetDir"), parentOk ? parent : QString()},
         {QStringLiteral("highlight"), highlight},
     });
-    if (w)
+    if (auto *win = qobject_cast<QQuickWindow *>(w)) {
         ++m_pendingWindows;
-    else
+        m_setupWindows.insert(dir, win);
+        connect(win, &QObject::destroyed, this, [this, dir] { m_setupWindows.remove(dir); });
+    } else {
+        delete w;
         quitIfIdle();
+    }
 }
 
 void Application::setupAccepted(const QString &sourceDir, const QString &targetDir,
                                 bool defaultSelected, const QString &highlight) {
     --m_pendingWindows;
+    if (QPointer<QQuickWindow> w = m_setupWindows.take(sourceDir))
+        w->deleteLater();
     auto *session = new Session(sourceDir);
     if (!session->create(toLocalPath(targetDir), defaultSelected)) {
         showError(session->errorString());
@@ -196,6 +216,15 @@ void Application::setupAccepted(const QString &sourceDir, const QString &targetD
 
 void Application::setupCancelled() {
     --m_pendingWindows;
+    for (auto it = m_setupWindows.begin(); it != m_setupWindows.end();) {
+        if (!*it || !(*it)->isVisible()) {
+            if (*it)
+                (*it)->deleteLater();
+            it = m_setupWindows.erase(it);
+        } else {
+            ++it;
+        }
+    }
     quitIfIdle();
 }
 
@@ -213,6 +242,12 @@ void Application::showMainWindow(Session *session, const QString &highlight) {
         return;
     }
     m_open.push_back({session, window});
+    // Camera clock corrections are global: re-sort every open folder.
+    connect(session, &Session::cameraOffsetsEdited, this, [this, session] {
+        for (const Open &o : m_open)
+            if (o.session != session)
+                o.session->reloadCameraOffsets();
+    });
     Automation::startIfRequested(window);
     connect(window, &QQuickWindow::closing, this, [this, window] {
         for (int i = 0; i < m_open.size(); ++i) {

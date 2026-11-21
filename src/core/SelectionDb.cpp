@@ -150,14 +150,19 @@ bool SelectionDb::setConfig(const QString &key, const QString &value) {
     return st.step() == SQLITE_DONE || setErrorFromDb();
 }
 
-QVector<DbFile> SelectionDb::files() const {
+QVector<DbFile> SelectionDb::files(bool *ok) const {
     QVector<DbFile> out;
+    if (ok)
+        *ok = false;
     if (!m_db)
         return out;
     Stmt st(m_db, "SELECT name, selected, size, mtime_ns, inode, exif_time, camera, dhash FROM files");
-    if (!st)
+    if (!st) {
+        m_error = QString::fromUtf8(sqlite3_errmsg(m_db));
         return out;
-    while (st.step() == SQLITE_ROW) {
+    }
+    int rc;
+    while ((rc = st.step()) == SQLITE_ROW) {
         DbFile f;
         f.name = st.text(0);
         f.selected = st.i64(1) != 0;
@@ -171,6 +176,12 @@ QVector<DbFile> SelectionDb::files() const {
             f.meta.dhash = quint64(st.i64(7));
         out.push_back(std::move(f));
     }
+    if (rc != SQLITE_DONE) {
+        m_error = QString::fromUtf8(sqlite3_errmsg(m_db));
+        return out;
+    }
+    if (ok)
+        *ok = true;
     return out;
 }
 

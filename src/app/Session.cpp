@@ -67,6 +67,7 @@ Session::Session(const QString &dir, QObject *parent)
     connect(&m_groupTimer, &QTimer::timeout, this, &Session::recomputeGroups);
 
     m_columns = settings::columns();
+    m_offsets = settings::cameraOffsets();
     m_metaPool.setMaxThreadCount(4);
     m_metaFlushTimer.setSingleShot(true);
     m_metaFlushTimer.setInterval(400);
@@ -135,7 +136,7 @@ Item Session::makeItem(const DbFile &f) {
     it.mtimeNs = f.mtimeNs;
     it.inode = f.inode;
     it.meta = f.meta;
-    it.sortTimeMs = correctedTimeMs(f.meta.exifTime, f.meta.camera, settings::cameraOffsets());
+    it.sortTimeMs = correctedTimeMs(f.meta.exifTime, f.meta.camera, m_offsets);
     m_uids->set(it.uid, it.name);
     return it;
 }
@@ -146,13 +147,24 @@ bool Session::loadFiles() {
     if (!m_watcher.start(m_dir))
         qWarning().noquote() << "picsel: cannot watch" << m_dir << m_watcher.errorString();
     const QVector<DiskFile> disk = scanDir(m_dir);
-    const ReconcileResult r = reconcile(m_db.files(), disk);
+    bool readOk = false;
+    const QVector<DbFile> before = m_db.files(&readOk);
+    if (!readOk) {
+        // Never reconcile against a partial list: that would reset choices.
+        fail(tr("Cannot read %1: %2").arg(SelectionDb::dbPath(m_dir), m_db.lastError()));
+        return false;
+    }
+    const ReconcileResult r = reconcile(before, disk);
     if (!r.isEmpty() && !applyReconcile(m_db, r, m_defaultSelected)) {
         fail(tr("Cannot update %1: %2").arg(SelectionDb::dbPath(m_dir), m_db.lastError()));
         return false;
     }
     QVector<Item> items;
-    const QVector<DbFile> rows = m_db.files();
+    const QVector<DbFile> rows = m_db.files(&readOk);
+    if (!readOk) {
+        fail(tr("Cannot read %1: %2").arg(SelectionDb::dbPath(m_dir), m_db.lastError()));
+        return false;
+    }
     items.reserve(rows.size());
     m_uids->clear();
     for (const DbFile &f : rows)
@@ -219,7 +231,7 @@ void Session::onMetadataRead(const QString &name, qint64 size, qint64 mtimeNs, c
         it->meta.camera = info.camera;
         m_pendingMeta.insert(name, it->meta);
         m_metaFlushTimer.start();
-        const qint64 t = correctedTimeMs(info.exifTime, info.camera, settings::cameraOffsets());
+        const qint64 t = correctedTimeMs(info.exifTime, info.camera, m_offsets);
         if (t != it->sortTimeMs) {
             it->sortTimeMs = t;
             if (m_sortMode == SortMode::Date)
@@ -398,7 +410,7 @@ QVariantMap Session::info(int row) const {
     m[QStringLiteral("camera")] = it->meta.camera;
     QString date = it->meta.exifTime;
     date.replace(QLatin1Char('T'), QLatin1Char(' '));
-    const qint64 offset = settings::cameraOffsets().value(it->meta.camera, 0);
+    const qint64 offset = m_offsets.value(it->meta.camera, 0);
     if (offset != 0 && it->sortTimeMs != kNoTime) {
         const QDateTime corrected = QDateTime::fromMSecsSinceEpoch(it->sortTimeMs, QTimeZone::UTC);
         date = corrected.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")) + tr(" (clock corrected)");
@@ -494,7 +506,7 @@ QVariantList Session::cameras() const {
     for (const Item &it : m_model.items())
         if (!it.meta.camera.isEmpty())
             counts[it.meta.camera]++;
-    const CameraOffsets offsets = settings::cameraOffsets();
+    const CameraOffsets &offsets = m_offsets;
     QVariantList out;
     for (auto i = counts.cbegin(); i != counts.cend(); ++i)
         out << QVariantMap{{QStringLiteral("camera"), i.key()},
@@ -506,10 +518,12 @@ QVariantList Session::cameras() const {
 void Session::setCameraOffset(const QString &camera, qint64 seconds) {
     settings::setCameraOffset(camera, seconds);
     reloadCameraOffsets();
+    emit cameraOffsetsEdited();
 }
 
 void Session::reloadCameraOffsets() {
-    const CameraOffsets offsets = settings::cameraOffsets();
+    m_offsets = settings::cameraOffsets();
+    const CameraOffsets &offsets = m_offsets;
     for (int row = 0; row < m_model.count(); ++row) {
         Item *it = m_model.mutableAt(row);
         it->sortTimeMs = correctedTimeMs(it->meta.exifTime, it->meta.camera, offsets);
@@ -603,6 +617,10 @@ void Session::removeItem(const QString &name) {
     const bool wasCurrent = name == m_currentName;
     m_model.removeRow(row);
     m_uids->remove(uid);
+    // A later file with the same name must not inherit these pixels.
+    m_thumbs->remove(name);
+    m_full->remove(name);
+    m_video.cancel(name);
     m_details.remove(name);
     m_hashes.remove(name);
     m_pendingMeta.remove(name);
@@ -686,8 +704,8 @@ void Session::onFileRenamed(const QString &from, const DiskFile &to) {
         return;
     }
     const int row = m_model.rowOf(from);
+    m_model.setName(row, to.name);
     Item *it = m_model.mutableAt(row);
-    it->name = to.name;
     it->kind = mediaKindForName(to.name);
     it->size = to.size;
     it->mtimeNs = to.mtimeNs;
@@ -739,7 +757,12 @@ void Session::onRescanNeeded() {
     flushRemovals();
     flushMetaWrites();
     m_details.clear();
-    loadFiles();
+    m_hashes.clear();
+    m_thumbs->clear(); // items are rebuilt with no thumbnail yet: decode again
+    m_full->clear();
+    m_video.clear();
+    if (!loadFiles())
+        emit errorOccurred(m_error);
     const int row = m_model.rowOf(m_currentName);
     emit highlightRequested(row >= 0 ? row : 0);
 }
