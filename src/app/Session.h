@@ -2,6 +2,7 @@
 #pragma once
 
 #include "FileListModel.h"
+#include "core/DirWatcher.h"
 #include "core/Metadata.h"
 #include "core/Mover.h"
 #include "core/SelectionDb.h"
@@ -123,6 +124,12 @@ private:
     void scheduleCacheOrder();
     void onThumbReady(const QString &name, QSize fullSize);
     void startMetadataScan();
+    void scheduleMetadata(const QStringList &names);
+    void onFileAdded(const picsel::DiskFile &f);
+    void onFileRemoved(const QString &name);
+    void onFileRenamed(const QString &from, const picsel::DiskFile &to);
+    void onFileChanged(const picsel::DiskFile &f);
+    void onRescanNeeded();
     void onMetadataRead(const QString &name, qint64 size, qint64 mtimeNs, const picsel::PhotoInfo &info);
     void flushMetaWrites();
     void resortAll();
@@ -158,6 +165,7 @@ private:
     QTimer m_metaFlushTimer;
     QTimer m_resortTimer;
     QPointer<MoveJob> m_moveJob;
+    DirWatcher m_watcher;
     QStringList m_pendingRemovals;   // moved files to drop from DB + model
     QTimer m_removalTimer;
     QThreadPool m_metaPool; // last: destroyed (and joined) first

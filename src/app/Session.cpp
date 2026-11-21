@@ -51,6 +51,14 @@ Session::Session(const QString &dir, QObject *parent)
     m_resortTimer.setSingleShot(true);
     m_resortTimer.setInterval(250);
     connect(&m_resortTimer, &QTimer::timeout, this, &Session::resortAll);
+    connect(&m_watcher, &DirWatcher::fileAdded, this, &Session::onFileAdded);
+    connect(&m_watcher, &DirWatcher::fileRemoved, this, &Session::onFileRemoved);
+    connect(&m_watcher, &DirWatcher::fileRenamed, this, &Session::onFileRenamed);
+    connect(&m_watcher, &DirWatcher::fileChanged, this, &Session::onFileChanged);
+    connect(&m_watcher, &DirWatcher::rescanNeeded, this, &Session::onRescanNeeded);
+    connect(&m_watcher, &DirWatcher::directoryGone, this, [this] {
+        emit errorOccurred(tr("The folder %1 was deleted or moved. Changes can no longer be saved.").arg(m_dir));
+    });
     m_removalTimer.setSingleShot(true);
     m_removalTimer.setInterval(60);
     connect(&m_removalTimer, &QTimer::timeout, this, &Session::flushRemovals);
@@ -110,6 +118,10 @@ Item Session::makeItem(const DbFile &f) {
 }
 
 bool Session::loadFiles() {
+    // Watch first so nothing created during the scan is missed (the watcher
+    // and the reconcile below agree on the result either way).
+    if (!m_watcher.start(m_dir))
+        qWarning().noquote() << "picsel: cannot watch" << m_dir << m_watcher.errorString();
     const QVector<DiskFile> disk = scanDir(m_dir);
     const ReconcileResult r = reconcile(m_db.files(), disk);
     if (!r.isEmpty() && !applyReconcile(m_db, r, m_defaultSelected)) {
@@ -135,12 +147,19 @@ bool Session::loadFiles() {
 
 void Session::startMetadataScan() {
     m_metaPool.clear();
-    for (const Item &it : m_model.items()) {
-        if (it.kind != MediaKind::Image)
+    QStringList names;
+    for (const Item &it : m_model.items())
+        names << it.name;
+    scheduleMetadata(names);
+}
+
+void Session::scheduleMetadata(const QStringList &names) {
+    for (const QString &name : names) {
+        const Item *it = m_model.at(m_model.rowOf(name));
+        if (!it || it->kind != MediaKind::Image)
             continue;
-        const QString name = it.name;
         const QString path = QDir(m_dir).filePath(name);
-        const qint64 size = it.size, mtime = it.mtimeNs;
+        const qint64 size = it->size, mtime = it->mtimeNs;
         m_metaPool.start([this, name, path, size, mtime] {
             const PhotoInfo info = readPhotoInfo(path).value_or(PhotoInfo{});
             QMetaObject::invokeMethod(this, [this, name, size, mtime, info] {
@@ -539,6 +558,109 @@ void Session::onMoveFinished(const QVector<MoveOutcome> &outcomes, bool cancelle
     const int row = m_model.rowOf(m_currentName);
     emit highlightRequested(row >= 0 ? row : 0);
     emit moveFinished(moved, skipped, failures, cancelled);
+}
+
+// --- Live folder changes -------------------------------------------------
+
+void Session::onFileAdded(const DiskFile &f) {
+    if (m_model.rowOf(f.name) >= 0) {
+        onFileChanged(f);
+        return;
+    }
+    DbFile d;
+    d.name = f.name;
+    d.selected = m_defaultSelected;
+    d.size = f.size;
+    d.mtimeNs = f.mtimeNs;
+    d.inode = f.inode;
+    if (!m_db.insertFile(d)) {
+        emit errorOccurred(tr("Could not record %1: %2").arg(f.name, m_db.lastError()));
+        return;
+    }
+    m_model.insertSorted(makeItem(d), m_sortMode);
+    scheduleCacheOrder();
+    recountSelected();
+    scheduleMetadata({f.name});
+    // Keep the highlight on the same picture if rows shifted under it.
+    const int row = m_model.rowOf(m_currentName);
+    if (row >= 0)
+        emit highlightRequested(row);
+}
+
+void Session::onFileRemoved(const QString &name) {
+    if (m_model.rowOf(name) < 0)
+        return; // already gone (e.g. moved by us)
+    m_db.removeFile(name);
+    const QString current = m_currentName;
+    removeItem(name);
+    scheduleCacheOrder();
+    recountSelected();
+    const int row = m_model.rowOf(current == name ? m_currentName : current);
+    if (row >= 0)
+        emit highlightRequested(row);
+}
+
+void Session::onFileRenamed(const QString &from, const DiskFile &to) {
+    const int fromRow = m_model.rowOf(from);
+    if (fromRow < 0) {
+        onFileAdded(to);
+        return;
+    }
+    if (from != to.name && m_model.rowOf(to.name) >= 0)
+        removeItem(to.name); // renamed over an existing picture
+    if (!m_db.renameFile(from, to.name) || !m_db.updateStat(to.name, to.size, to.mtimeNs, to.inode)) {
+        emit errorOccurred(tr("Could not record the rename of %1: %2").arg(from, m_db.lastError()));
+        return;
+    }
+    const int row = m_model.rowOf(from);
+    Item *it = m_model.mutableAt(row);
+    it->name = to.name;
+    it->kind = mediaKindForName(to.name);
+    it->size = to.size;
+    it->mtimeNs = to.mtimeNs;
+    it->inode = to.inode;
+    m_uids->set(it->uid, to.name);
+    if (m_details.contains(from))
+        m_details.insert(to.name, m_details.take(from));
+    if (m_currentName == from)
+        m_currentName = to.name;
+    const int newRow = m_model.resort(row, m_sortMode);
+    m_model.notifyChanged(newRow, {});
+    // The caches are keyed by name: the picture is decoded again under its new name.
+    scheduleCacheOrder();
+    recountSelected();
+    emit itemInfoChanged(newRow);
+    const int cur = m_model.rowOf(m_currentName);
+    if (cur >= 0)
+        emit highlightRequested(cur);
+}
+
+void Session::onFileChanged(const DiskFile &f) {
+    const int row = m_model.rowOf(f.name);
+    Item *it = m_model.mutableAt(row);
+    if (!it) {
+        onFileAdded(f);
+        return;
+    }
+    m_db.updateStat(f.name, f.size, f.mtimeNs, f.inode);
+    it->size = f.size;
+    it->mtimeNs = f.mtimeNs;
+    it->inode = f.inode;
+    it->meta.scanned = false;
+    m_thumbs->invalidate(f.name);
+    m_full->invalidate(f.name);
+    scheduleMetadata({f.name});
+    emit itemInfoChanged(row);
+}
+
+void Session::onRescanNeeded() {
+    // Rare (inotify queue overflow): reconcile everything from scratch.
+    flushRemovals();
+    flushMetaWrites();
+    m_details.clear();
+    loadFiles();
+    const int row = m_model.rowOf(m_currentName);
+    emit highlightRequested(row >= 0 ? row : 0);
 }
 
 } // namespace picsel
