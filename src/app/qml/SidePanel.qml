@@ -16,6 +16,7 @@ Rectangle {
     signal selectRequested()
     signal deselectRequested()
     signal moveRequested()
+    signal cameraClocksRequested()
     signal activated()   // a control was used; give focus back to the mosaic
 
     color: Theme.panel
@@ -142,6 +143,7 @@ Rectangle {
                 SectionTitle { text: qsTr("Sort by") }
                 RowLayout {
                     Layout.fillWidth: true
+                    spacing: 4
                     RadioButton {
                         text: qsTr("Name")
                         focusPolicy: Qt.NoFocus
@@ -153,6 +155,12 @@ Rectangle {
                         focusPolicy: Qt.NoFocus
                         checked: root.session.sortMode === "date"
                         onClicked: { root.session.sortMode = "date"; root.activated() }
+                    }
+                    Item { Layout.fillWidth: true }
+                    Button {
+                        text: qsTr("Camera clocks…")
+                        focusPolicy: Qt.NoFocus
+                        onClicked: root.cameraClocksRequested()
                     }
                 }
 

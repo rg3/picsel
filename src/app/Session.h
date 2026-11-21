@@ -69,6 +69,13 @@ public:
     Q_INVOKABLE void resolveConflict(int action, bool applyToAll);
     Q_INVOKABLE void cancelMove();
 
+    // Cameras seen in this folder: [{camera, count, offset (seconds)}].
+    Q_INVOKABLE QVariantList cameras() const;
+    // Global clock correction for a camera model; re-sorts when sorting by date.
+    Q_INVOKABLE void setCameraOffset(const QString &camera, qint64 seconds);
+    // Re-reads global camera offsets (e.g. changed in another window).
+    void reloadCameraOffsets();
+
     Q_INVOKABLE int rowOf(const QString &name) const { return m_model.rowOf(name); }
     // The view's highlighted row; kept across re-sorts and list changes.
     Q_INVOKABLE void setCurrentRow(int row);

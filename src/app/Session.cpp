@@ -5,7 +5,10 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QDateTime>
 #include <QLocale>
+#include <QMap>
+#include <QTimeZone>
 #include <QUrl>
 
 #include <algorithm>
@@ -337,6 +340,11 @@ QVariantMap Session::info(int row) const {
     m[QStringLiteral("camera")] = it->meta.camera;
     QString date = it->meta.exifTime;
     date.replace(QLatin1Char('T'), QLatin1Char(' '));
+    const qint64 offset = settings::cameraOffsets().value(it->meta.camera, 0);
+    if (offset != 0 && it->sortTimeMs != kNoTime) {
+        const QDateTime corrected = QDateTime::fromMSecsSinceEpoch(it->sortTimeMs, QTimeZone::UTC);
+        date = corrected.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")) + tr(" (clock corrected)");
+    }
     m[QStringLiteral("date")] = date;
     const PhotoInfo details = m_details.value(it->name);
     m[QStringLiteral("lens")] = details.lens;
@@ -390,6 +398,36 @@ void Session::onThumbFailed(const QString &name) {
         return;
     it->thumbFailed = true;
     m_model.notifyChanged(row, {FileListModel::ThumbFailedRole});
+}
+
+QVariantList Session::cameras() const {
+    QMap<QString, int> counts;
+    for (const Item &it : m_model.items())
+        if (!it.meta.camera.isEmpty())
+            counts[it.meta.camera]++;
+    const CameraOffsets offsets = settings::cameraOffsets();
+    QVariantList out;
+    for (auto i = counts.cbegin(); i != counts.cend(); ++i)
+        out << QVariantMap{{QStringLiteral("camera"), i.key()},
+                           {QStringLiteral("count"), i.value()},
+                           {QStringLiteral("offset"), offsets.value(i.key(), 0)}};
+    return out;
+}
+
+void Session::setCameraOffset(const QString &camera, qint64 seconds) {
+    settings::setCameraOffset(camera, seconds);
+    reloadCameraOffsets();
+}
+
+void Session::reloadCameraOffsets() {
+    const CameraOffsets offsets = settings::cameraOffsets();
+    for (int row = 0; row < m_model.count(); ++row) {
+        Item *it = m_model.mutableAt(row);
+        it->sortTimeMs = correctedTimeMs(it->meta.exifTime, it->meta.camera, offsets);
+    }
+    if (m_sortMode == SortMode::Date)
+        resortAll();
+    emit itemInfoChanged(m_model.rowOf(m_currentName));
 }
 
 QVariantMap Session::prepareMove() const {

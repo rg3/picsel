@@ -13,6 +13,7 @@ ApplicationWindow {
     readonly property bool fullViewOpen: fullViewLoader.active
     readonly property bool dialogOpen: confirmDialog.visible || conflictDialog.visible
                                        || progressDialog.visible || messageDialog.visible
+                                       || clocksDialog.visible
                                        || window.session.moving
 
     width: 1600
@@ -100,6 +101,7 @@ ApplicationWindow {
             onSelectRequested: window.select(true)
             onDeselectRequested: window.select(false)
             onMoveRequested: window.requestMove()
+            onCameraClocksRequested: clocksDialog.open()
             onActivated: mosaic.forceActiveFocus()
         }
 
@@ -198,6 +200,12 @@ ApplicationWindow {
             if (window.session.moving)
                 progressTimer.restart()
         }
+    }
+
+    CameraClocksDialog {
+        id: clocksDialog
+        session: window.session
+        onClosed: mosaic.forceActiveFocus()
     }
 
     MoveProgressDialog {

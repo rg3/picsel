@@ -25,6 +25,7 @@ qt_add_qml_module(picsel
     qml/ConfirmMoveDialog.qml
     qml/ConflictDialog.qml
     qml/MoveProgressDialog.qml
+    qml/CameraClocksDialog.qml
     qml/SetupWindow.qml
     qml/FolderPicker.qml
     qml/ErrorWindow.qml
