@@ -227,12 +227,24 @@ Rectangle {
             Layout.preferredHeight: 52
             focusPolicy: Qt.NoFocus
             enabled: root.session.selectedCount > 0
-            text: qsTr("Move %n selected…", "", root.session.selectedCount)
+            text: root.session.selectedCount === 1 ? qsTr("Move 1 picture…")
+                  : qsTr("Move %1 pictures…").arg(root.session.selectedCount)
             font.pixelSize: Theme.fontLarge
             font.bold: true
-            palette.button: Theme.accent
-            palette.buttonText: "white"
             onClicked: root.moveRequested()
+            contentItem: Label {
+                text: moveButton.text
+                font: moveButton.font
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                color: moveButton.enabled ? "white" : Theme.textDim
+            }
+            background: Rectangle {
+                radius: 6
+                color: !moveButton.enabled ? Theme.panelRaised
+                       : moveButton.down ? Qt.darker(Theme.accent, 1.2)
+                       : moveButton.hovered ? Qt.lighter(Theme.accent, 1.1) : Theme.accent
+            }
         }
     }
 }

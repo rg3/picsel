@@ -3,6 +3,8 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QKeySequence>
+#include <QMouseEvent>
+#include <QPointingDevice>
 #include <QTimer>
 #include <QTest>
 
@@ -32,10 +34,20 @@ static void sendKey(QWindow *w, const QKeyCombination &kc) {
 }
 
 static void sendClick(QWindow *w, QPointF pos, bool dbl) {
-    if (dbl)
-        QTest::mouseDClick(w, Qt::LeftButton, {}, pos.toPoint());
-    else
-        QTest::mouseClick(w, Qt::LeftButton, {}, pos.toPoint());
+    const QPointF global = w->mapToGlobal(pos);
+    auto send = [&](QEvent::Type type, Qt::MouseButtons buttons) {
+        QMouseEvent ev(type, pos, pos, global, Qt::LeftButton, buttons, Qt::NoModifier,
+                       QPointingDevice::primaryPointingDevice());
+        QCoreApplication::sendEvent(w, &ev);
+    };
+    send(QEvent::MouseMove, Qt::NoButton);
+    send(QEvent::MouseButtonPress, Qt::LeftButton);
+    send(QEvent::MouseButtonRelease, Qt::NoButton);
+    if (dbl) {
+        send(QEvent::MouseButtonPress, Qt::LeftButton);
+        send(QEvent::MouseButtonDblClick, Qt::LeftButton);
+        send(QEvent::MouseButtonRelease, Qt::NoButton);
+    }
 }
 
 void Automation::step() {

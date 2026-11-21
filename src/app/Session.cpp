@@ -48,6 +48,9 @@ Session::Session(const QString &dir, QObject *parent)
     m_resortTimer.setSingleShot(true);
     m_resortTimer.setInterval(250);
     connect(&m_resortTimer, &QTimer::timeout, this, &Session::resortAll);
+    m_removalTimer.setSingleShot(true);
+    m_removalTimer.setInterval(60);
+    connect(&m_removalTimer, &QTimer::timeout, this, &Session::flushRemovals);
     m_cacheOrderTimer.setSingleShot(true);
     m_cacheOrderTimer.setInterval(0);
     connect(&m_cacheOrderTimer, &QTimer::timeout, this, &Session::rebuildCacheOrder);
@@ -56,6 +59,8 @@ Session::Session(const QString &dir, QObject *parent)
 }
 
 Session::~Session() {
+    delete m_moveJob; // cancels and joins the worker
+    flushRemovals();
     m_metaPool.clear();
     m_metaPool.waitForDone();
     flushMetaWrites();
@@ -385,6 +390,117 @@ void Session::onThumbFailed(const QString &name) {
         return;
     it->thumbFailed = true;
     m_model.notifyChanged(row, {FileListModel::ThumbFailedRole});
+}
+
+QVariantMap Session::prepareMove() const {
+    QStringList names;
+    for (const Item &it : m_model.items())
+        if (it.selected)
+            names << it.name;
+    const PreflightResult r = preflightMove(m_dir, m_targetDir, names);
+    return {
+        {QStringLiteral("count"), int(names.size())},
+        {QStringLiteral("total"), m_model.count()},
+        {QStringLiteral("target"), m_targetDir},
+        {QStringLiteral("fatal"), r.fatal},
+        {QStringLiteral("blocked"), r.blocked},
+        {QStringLiteral("conflicts"), r.conflicts},
+    };
+}
+
+void Session::startMove() {
+    if (m_moveJob)
+        return;
+    QStringList names;
+    for (const Item &it : m_model.items())
+        if (it.selected)
+            names << it.name;
+    if (names.isEmpty())
+        return;
+    // Selection changes made before the move can't be undone afterwards.
+    if (!m_undo.isEmpty()) {
+        m_undo.clear();
+        emit canUndoChanged();
+    }
+    m_moveJob = new MoveJob(m_dir, m_targetDir, names, this);
+    connect(m_moveJob, &MoveJob::progress, this, &Session::moveProgress);
+    connect(m_moveJob, &MoveJob::conflictFound, this, &Session::moveConflict);
+    connect(m_moveJob, &MoveJob::fileMoved, this, [this](const QString &name, const QString &) {
+        onFileMoved(name);
+    });
+    connect(m_moveJob, &MoveJob::finished, this, &Session::onMoveFinished);
+    emit movingChanged();
+    m_moveJob->start();
+}
+
+void Session::resolveConflict(int action, bool applyToAll) {
+    if (!m_moveJob)
+        return;
+    const ConflictAction a = action == 0 ? ConflictAction::Overwrite
+        : action == 1 ? ConflictAction::Rename : ConflictAction::Skip;
+    m_moveJob->resolveConflict(a, applyToAll);
+}
+
+void Session::cancelMove() {
+    if (m_moveJob)
+        m_moveJob->cancel();
+}
+
+void Session::onFileMoved(const QString &name) {
+    m_pendingRemovals << name;
+    if (!m_removalTimer.isActive())
+        m_removalTimer.start();
+}
+
+void Session::flushRemovals() {
+    if (m_pendingRemovals.isEmpty())
+        return;
+    const QStringList names = std::exchange(m_pendingRemovals, {});
+    if (m_db.isOpen()) {
+        SelectionDb::Transaction tx(m_db);
+        for (const QString &n : names)
+            m_db.removeFile(n);
+        tx.commit();
+    }
+    for (const QString &n : names)
+        removeItem(n);
+    rebuildCacheOrder();
+    recountSelected();
+}
+
+void Session::removeItem(const QString &name) {
+    const int row = m_model.rowOf(name);
+    if (row < 0)
+        return;
+    const quint32 uid = m_model.at(row)->uid;
+    const bool wasCurrent = name == m_currentName;
+    m_model.removeRow(row);
+    m_uids->remove(uid);
+    m_details.remove(name);
+    m_pendingMeta.remove(name);
+    if (wasCurrent) {
+        const Item *next = m_model.at(std::min(row, m_model.count() - 1));
+        m_currentName = next ? next->name : QString();
+    }
+}
+
+void Session::onMoveFinished(const QVector<MoveOutcome> &outcomes, bool cancelled) {
+    flushRemovals();
+    int moved = 0, skipped = 0;
+    QStringList failures;
+    for (const MoveOutcome &o : outcomes) {
+        switch (o.status) {
+        case MoveOutcome::Moved: ++moved; break;
+        case MoveOutcome::Skipped: ++skipped; break;
+        case MoveOutcome::Failed: failures << QStringLiteral("%1: %2").arg(o.name, o.error); break;
+        }
+    }
+    m_moveJob->deleteLater();
+    m_moveJob = nullptr;
+    emit movingChanged();
+    const int row = m_model.rowOf(m_currentName);
+    emit highlightRequested(row >= 0 ? row : 0);
+    emit moveFinished(moved, skipped, failures, cancelled);
 }
 
 } // namespace picsel

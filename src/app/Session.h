@@ -3,6 +3,7 @@
 
 #include "FileListModel.h"
 #include "core/Metadata.h"
+#include "core/Mover.h"
 #include "core/SelectionDb.h"
 #include "core/Sorting.h"
 #include "image/ImageCache.h"
@@ -10,6 +11,7 @@
 
 #include <QHash>
 #include <QObject>
+#include <QPointer>
 #include <QThreadPool>
 #include <QTimer>
 #include <QVariantMap>
@@ -33,6 +35,7 @@ class Session : public QObject {
     Q_PROPERTY(int totalCount READ totalCount NOTIFY countsChanged)
     Q_PROPERTY(int columns READ columns WRITE setColumns NOTIFY columnsChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY canUndoChanged)
+    Q_PROPERTY(bool moving READ moving NOTIFY movingChanged)
 
 public:
     explicit Session(const QString &dir, QObject *parent = nullptr);
@@ -56,6 +59,15 @@ public:
     int columns() const { return m_columns; }
     void setColumns(int n);
     bool canUndo() const { return !m_undo.isEmpty(); }
+    bool moving() const { return m_moveJob != nullptr; }
+
+    // Checks the selected files against the target folder. Returns
+    // {count, total, target, fatal, blocked: [names], conflicts: [names]}.
+    Q_INVOKABLE QVariantMap prepareMove() const;
+    Q_INVOKABLE void startMove();
+    // action: 0 = overwrite, 1 = keep both (rename), 2 = skip
+    Q_INVOKABLE void resolveConflict(int action, bool applyToAll);
+    Q_INVOKABLE void cancelMove();
 
     Q_INVOKABLE int rowOf(const QString &name) const { return m_model.rowOf(name); }
     // The view's highlighted row; kept across re-sorts and list changes.
@@ -86,6 +98,11 @@ signals:
     void highlightRequested(int row);
     void itemInfoChanged(int row);
     void errorOccurred(const QString &message);
+    void movingChanged();
+    void moveProgress(int done, int total, const QString &name);
+    void moveConflict(const QString &name);
+    // Summary of a finished move, for the result message.
+    void moveFinished(int moved, int skipped, const QStringList &failures, bool cancelled);
 
 private:
     struct UndoEntry {
@@ -102,6 +119,10 @@ private:
     void onMetadataRead(const QString &name, qint64 size, qint64 mtimeNs, const picsel::PhotoInfo &info);
     void flushMetaWrites();
     void resortAll();
+    void onFileMoved(const QString &name);
+    void onMoveFinished(const QVector<picsel::MoveOutcome> &outcomes, bool cancelled);
+    void flushRemovals();
+    void removeItem(const QString &name);
     void onThumbFailed(const QString &name);
     void recountSelected();
     bool applySelected(int row, bool selected, bool recordUndo);
@@ -129,6 +150,9 @@ private:
     QHash<QString, FileMeta> m_pendingMeta;   // to write to the DB in one transaction
     QTimer m_metaFlushTimer;
     QTimer m_resortTimer;
+    QPointer<MoveJob> m_moveJob;
+    QStringList m_pendingRemovals;   // moved files to drop from DB + model
+    QTimer m_removalTimer;
     QThreadPool m_metaPool; // last: destroyed (and joined) first
 };
 

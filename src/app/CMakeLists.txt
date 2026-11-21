@@ -22,6 +22,9 @@ qt_add_qml_module(picsel
     qml/Tile.qml
     qml/SidePanel.qml
     qml/FullView.qml
+    qml/ConfirmMoveDialog.qml
+    qml/ConflictDialog.qml
+    qml/MoveProgressDialog.qml
     qml/SetupWindow.qml
     qml/FolderPicker.qml
     qml/ErrorWindow.qml
