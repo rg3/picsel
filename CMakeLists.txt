@@ -24,7 +24,5 @@ enable_testing()
 add_subdirectory(tests)
 
 include(GNUInstallDirs)
-set(PICSEL_ICON_PATH ${CMAKE_INSTALL_FULL_DATADIR}/icons/hicolor/scalable/apps/picsel.svg)
-configure_file(data/picsel.desktop.in ${CMAKE_CURRENT_BINARY_DIR}/picsel.desktop @ONLY)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/picsel.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES data/picsel.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES data/picsel.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)

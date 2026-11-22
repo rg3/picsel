@@ -124,10 +124,11 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 ## Gotchas found the hard way
 
 - **KDE taskbar icon:** Plasma ignores icon folders created after it started
-  (the first install creates `~/.local/share/icons/hicolor`), so the desktop
-  entry uses an absolute `Icon=` path (configured from
-  `data/picsel.desktop.in`). The SVG is also embedded and set as the window
-  icon (`:/icons/picsel.svg`).
+  (the first install may create `~/.local/share/icons/hicolor`), so with
+  `Icon=picsel` the icon can be missing until the next login. The install
+  runs no cache updates (`update-desktop-database`, `kbuildsycoca6`): that
+  is left to the user or to packaging scripts. The SVG is also embedded and
+  set as the window icon (`:/icons/picsel.svg`).
 - **Natural sort:** `QCollator` ignores numeric mode in the C locale, so
   `compareNames` is a hand-written, locale-independent natural sort.
 - **No mmap for decoding:** a file truncated by another program
