@@ -46,6 +46,21 @@ struct DbFile {
     FileMeta meta;
 };
 
+// What opening a folder would find, checked without writing anything.
+struct DbProbe {
+    enum class State {
+        NotSetUp, // no picsel.db, or one without a destination yet: ask
+        Ready,    // set up for this folder
+        Moved,    // set up for another folder (copied, moved or renamed): ask again
+        Unusable, // error says why; picsel.db is left untouched
+    };
+    State state = State::NotSetUp;
+    QString error;
+    QString setUpFor;  // Moved: the folder picsel.db was set up for
+    QString targetDir; // stored destination, if any
+    bool defaultSelected = false;
+};
+
 class SelectionDb {
 public:
     SelectionDb() = default;
@@ -55,10 +70,12 @@ public:
 
     static QString dbPath(const QString &dir);
     static bool existsIn(const QString &dir);
+    static DbProbe probe(const QString &dir);
 
-    // Opens (and creates if needed) the database in |dir|. On creation the
-    // config table is initialised from the given values.
+    // Opens the picsel.db of |dir|, which must be a set-up picsel database.
     bool open(const QString &dir);
+    // Creates picsel.db in |dir| or, if it is already picsel's, keeps its
+    // files and rewrites the configuration. Anything else is left alone.
     bool create(const QString &dir, const QString &targetDir, bool defaultSelected);
     void close();
     bool isOpen() const { return m_db != nullptr; }
@@ -90,6 +107,10 @@ public:
     };
 
 private:
+    enum class Content { Empty, Picsel, Rejected };
+    // Checks what an open database holds, reading only; Rejected sets m_error.
+    Content inspect(const QString &dir);
+    bool openFile(const QString &dir, bool create);
     bool exec(const char *sql);
     bool initSchema();
     bool setErrorFromDb();

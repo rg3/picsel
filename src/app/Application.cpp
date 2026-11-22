@@ -138,17 +138,25 @@ void Application::openPath(const QString &path, const QByteArray &token) {
         return;
     }
 
-    if (SelectionDb::existsIn(dir)) {
-        auto *session = new Session(dir);
-        if (!session->open()) {
-            showError(session->errorString());
-            delete session;
-            return;
-        }
-        showMainWindow(session, highlight);
-    } else {
-        showSetup(dir, highlight);
+    const DbProbe probe = SelectionDb::probe(dir);
+    switch (probe.state) {
+    case DbProbe::State::Unusable:
+        showError(probe.error);
+        return;
+    case DbProbe::State::NotSetUp:
+    case DbProbe::State::Moved:
+        showSetup(dir, highlight, probe);
+        return;
+    case DbProbe::State::Ready:
+        break;
     }
+    auto *session = new Session(dir);
+    if (!session->open()) {
+        showError(session->errorString());
+        delete session;
+        return;
+    }
+    showMainWindow(session, highlight);
 }
 
 void Application::openFolder(const QString &pathOrUrl) {
@@ -168,6 +176,8 @@ QObject *Application::createWindow(const char *type, const QVariantMap &props) {
     QObject *obj = component.createWithInitialProperties(props);
     if (!obj)
         qWarning().noquote() << component.errorString();
+    else if (auto *win = qobject_cast<QQuickWindow *>(obj))
+        Automation::startIfRequested(win);
     return obj;
 }
 
@@ -176,25 +186,34 @@ void Application::showPicker() {
     if (auto *win = qobject_cast<QQuickWindow *>(w)) {
         ++m_pendingWindows;
         connect(win, SIGNAL(finished()), win, SLOT(deleteLater())); // QML signal
-        Automation::startIfRequested(win);
     } else {
         delete w;
         quitIfIdle();
     }
 }
 
-void Application::showSetup(const QString &dir, const QString &highlight) {
-    if (!QFileInfo(dir).isWritable()) {
-        showError(tr("The folder %1 is not writable, so picsel cannot keep its selection database there.")
-                      .arg(dir));
-        return;
-    }
-    const QString parent = QFileInfo(dir).absolutePath();
-    const bool parentOk = parent != dir && isWritableDir(parent);
+void Application::showSetup(const QString &dir, const QString &highlight, const DbProbe &probe) {
+    // Suggest the stored destination when it still works, else the parent
+    // folder. A folder that was moved or copied gets the parent of where it
+    // is now: its stored destination belongs to the old place.
+    const auto usable = [&](const QString &d) {
+        return !d.isEmpty() && QFileInfo(d).canonicalFilePath() != dir && isWritableDir(d);
+    };
+    QString target;
+    if (probe.state != DbProbe::State::Moved && usable(probe.targetDir))
+        target = probe.targetDir;
+    else if (const QString parent = QFileInfo(dir).absolutePath(); usable(parent))
+        target = parent;
+    const QString notice = probe.state == DbProbe::State::Moved
+        ? tr("This folder was set up as %1. It has been moved or copied since, so check where the "
+             "selected pictures should go. The selection so far is kept.").arg(probe.setUpFor)
+        : QString();
     QObject *w = createWindow("SetupWindow", {
         {QStringLiteral("sourceDir"), dir},
-        {QStringLiteral("targetDir"), parentOk ? parent : QString()},
+        {QStringLiteral("targetDir"), target},
         {QStringLiteral("highlight"), highlight},
+        {QStringLiteral("notice"), notice},
+        {QStringLiteral("startSelected"), probe.defaultSelected},
     });
     if (auto *win = qobject_cast<QQuickWindow *>(w)) {
         ++m_pendingWindows;
@@ -255,7 +274,6 @@ void Application::showMainWindow(Session *session, const QString &highlight) {
             if (o.session != session)
                 o.session->reloadCameraOffsets();
     });
-    Automation::startIfRequested(window);
     connect(window, &QQuickWindow::closing, this, [this, window] {
         for (int i = 0; i < m_open.size(); ++i) {
             if (m_open[i].window == window) {

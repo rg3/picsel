@@ -141,6 +141,16 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   codecs, and the SVG plugin don't show up as link dependencies.
   `picsel --check` (`src/app/SystemCheck.*`) reports them; keep its module
   list in sync with the QML imports and the README.
+- **Opening picsel.db:** `SelectionDb::probe()` decides, reading only, what
+  `Application::openPath` does: setup window (no database, empty file,
+  half-finished set-up, no destination), setup window with a notice (the
+  stored `source_dir` is another folder: copied, moved or renamed, and the
+  absolute `target_dir` belongs to the old place), main window, or an error
+  window. `open()` and `create()` repeat the ownership check (`inspect()`)
+  before any write, even the WAL pragma, so another program's SQLite file is
+  never touched. Tables and the `app_id` marker are created in one
+  transaction; unmarked picsel tables (older set-ups that crashed) are only
+  accepted while empty.
 - **QML singleton:** `Application` is the `App` singleton through its
   static `create()`, which returns the one made in `main()`. Qt prefers a
   default constructor over `create()`, so `Application` must not have one:

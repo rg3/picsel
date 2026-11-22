@@ -12,6 +12,8 @@ ApplicationWindow {
     required property string sourceDir
     property string targetDir: ""
     property string highlight: ""
+    property string notice: ""          // why the setup is asked again, if it is
+    property bool startSelected: false  // stored choice when asked again
     property bool done: false
 
     readonly property bool targetValid: targetDir !== "" && App.isWritableDir(targetDir)
@@ -64,6 +66,13 @@ ApplicationWindow {
             font.bold: true
             elide: Text.ElideLeft
         }
+        Label {
+            Layout.fillWidth: true
+            visible: root.notice !== ""
+            text: root.notice
+            color: Theme.danger
+            wrapMode: Text.Wrap
+        }
 
         Label {
             Layout.topMargin: 8
@@ -98,11 +107,12 @@ ApplicationWindow {
         RowLayout {
             RadioButton {
                 id: deselectedRadio
-                checked: true
+                checked: !root.startSelected
                 text: qsTr("Not selected — I'll pick the keepers")
             }
             RadioButton {
                 id: selectedRadio
+                checked: root.startSelected
                 text: qsTr("Selected — I'll pick the rejects")
             }
         }

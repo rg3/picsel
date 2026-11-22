@@ -116,6 +116,9 @@ bool Session::open() {
         fail(tr("Cannot open %1: %2").arg(SelectionDb::dbPath(m_dir), m_db.lastError()));
         return false;
     }
+    // Older databases may lack it; it is what reveals a moved or copied folder.
+    if (m_db.config(QString::fromLatin1(cfg::SourceDir)).isEmpty())
+        m_db.setConfig(QString::fromLatin1(cfg::SourceDir), m_dir);
     m_targetDir = m_db.config(QString::fromLatin1(cfg::TargetDir));
     m_defaultSelected = m_db.config(QString::fromLatin1(cfg::DefaultSelected)) == QLatin1String("1");
     m_sortMode = sortModeFromString(m_db.config(QString::fromLatin1(cfg::SortMode)));

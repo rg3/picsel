@@ -13,6 +13,8 @@
 
 namespace picsel {
 
+struct DbProbe;
+
 class Session;
 
 class Application : public QObject {
@@ -53,7 +55,7 @@ private:
 
     void onNewConnection();
     void showPicker();
-    void showSetup(const QString &dir, const QString &highlight);
+    void showSetup(const QString &dir, const QString &highlight, const DbProbe &probe);
     void showMainWindow(Session *session, const QString &highlight);
     void showError(const QString &message);
     QObject *createWindow(const char *type, const QVariantMap &props);

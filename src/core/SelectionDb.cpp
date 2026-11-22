@@ -66,30 +66,184 @@ bool SelectionDb::exec(const char *sql) {
     return true;
 }
 
-bool SelectionDb::open(const QString &dir) {
+namespace {
+
+QString canonicalDir(const QString &dir) {
+    const QString c = QFileInfo(dir).canonicalFilePath();
+    return c.isEmpty() ? QDir::cleanPath(QDir(dir).absolutePath()) : c;
+}
+
+QString notPicsels(const QString &path) {
+    return QStringLiteral("%1 is not a picsel database, so picsel leaves it alone. "
+                          "Move or rename it to use this folder.").arg(path);
+}
+
+// The tables and columns picsel reads and writes.
+struct TableSpec {
+    const char *name;
+    std::initializer_list<const char *> columns;
+};
+const TableSpec kTables[] = {
+    {"config", {"key", "value"}},
+    {"files", {"name", "selected", "size", "mtime_ns", "inode", "exif_time", "camera", "dhash"}},
+};
+
+} // namespace
+
+SelectionDb::Content SelectionDb::inspect(const QString &dir) {
+    const QString path = dbPath(dir);
+    auto readError = [&] {
+        m_error = sqlite3_errcode(m_db) == SQLITE_NOTADB
+            ? notPicsels(path)
+            : QStringLiteral("Cannot read %1: %2").arg(path, QString::fromUtf8(sqlite3_errmsg(m_db)));
+        return Content::Rejected;
+    };
+
+    QStringList tables;
+    {
+        Stmt st(m_db, "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'");
+        if (!st)
+            return readError();
+        int rc;
+        while ((rc = st.step()) == SQLITE_ROW)
+            tables << st.text(0);
+        if (rc != SQLITE_DONE)
+            return readError();
+    }
+    if (tables.isEmpty())
+        return Content::Empty;
+    for (const QString &t : std::as_const(tables)) {
+        if (t != QLatin1String("config") && t != QLatin1String("files")) {
+            m_error = notPicsels(path);
+            return Content::Rejected;
+        }
+    }
+    if (!tables.contains(QLatin1String("config"))) {
+        m_error = notPicsels(path);
+        return Content::Rejected;
+    }
+
+    const QString appId = config(QString::fromLatin1(cfg::AppId));
+    if (!appId.isEmpty() && appId != QLatin1String(kAppId)) {
+        m_error = QStringLiteral("%1 belongs to another application (%2), so picsel leaves it alone.")
+                      .arg(path, appId);
+        return Content::Rejected;
+    }
+    for (const TableSpec &spec : kTables) {
+        if (!tables.contains(QLatin1String(spec.name))) {
+            if (appId.isEmpty()) {
+                m_error = notPicsels(path);
+                return Content::Rejected;
+            }
+            continue; // marked as picsel's: open() creates what is missing
+        }
+        QStringList have;
+        Stmt st(m_db, QByteArray("PRAGMA table_info(") + spec.name + ")");
+        if (!st)
+            return readError();
+        while (st.step() == SQLITE_ROW)
+            have << st.text(1);
+        for (const char *column : spec.columns) {
+            if (!have.contains(QLatin1String(column))) {
+                m_error = QStringLiteral("%1 is damaged or comes from an incompatible picsel (table %2 has "
+                                         "no column %3). Move or rename it to start this folder again.")
+                              .arg(path, QLatin1String(spec.name), QLatin1String(column));
+                return Content::Rejected;
+            }
+        }
+    }
+
+    if (appId.isEmpty()) {
+        // Unmarked picsel tables: a set-up that never finished (older picsel
+        // created the tables before the marker). Only accept them empty.
+        Stmt st(m_db, "SELECT (SELECT count(*) FROM config) + (SELECT count(*) FROM files)");
+        if (!st || st.step() != SQLITE_ROW)
+            return readError();
+        if (st.i64(0) != 0) {
+            m_error = notPicsels(path);
+            return Content::Rejected;
+        }
+        return Content::Empty;
+    }
+    const int version = config(QString::fromLatin1(cfg::SchemaVersion), QStringLiteral("0")).toInt();
+    if (version > kSchemaVersion) {
+        m_error = QStringLiteral("%1 was written by a newer picsel (schema %2).").arg(path).arg(version);
+        return Content::Rejected;
+    }
+    return Content::Picsel;
+}
+
+DbProbe SelectionDb::probe(const QString &dir) {
+    DbProbe p;
+    auto unusable = [&p](const QString &error) {
+        p.state = DbProbe::State::Unusable;
+        p.error = error;
+        return p;
+    };
+    const QString path = dbPath(dir);
+    if (!QFileInfo(dir).isWritable())
+        return unusable(QStringLiteral("The folder %1 is not writable, so picsel cannot keep its "
+                                       "selection database there.").arg(dir));
+    const QFileInfo fi(path);
+    if (!fi.exists() && !fi.isSymLink())
+        return p;
+    if (!fi.isFile())
+        return unusable(QStringLiteral("%1 is not a regular file, so picsel cannot use it. "
+                                       "Move or rename it to use this folder.").arg(path));
+    if (!fi.isWritable())
+        return unusable(QStringLiteral("%1 is read-only, so picsel cannot save selections in it.").arg(path));
+    if (fi.size() == 0)
+        return p;
+
+    SelectionDb db; // read-only: probing never changes the file
+    if (sqlite3_open_v2(path.toUtf8().constData(), &db.m_db, SQLITE_OPEN_READONLY, nullptr) != SQLITE_OK) {
+        db.setErrorFromDb();
+        return unusable(QStringLiteral("Cannot open %1: %2").arg(path, db.m_error));
+    }
+    switch (db.inspect(dir)) {
+    case Content::Rejected:
+        return unusable(db.m_error);
+    case Content::Empty:
+        return p;
+    case Content::Picsel:
+        break;
+    }
+    p.targetDir = db.config(QString::fromLatin1(cfg::TargetDir));
+    p.defaultSelected = db.config(QString::fromLatin1(cfg::DefaultSelected)) == QLatin1String("1");
+    if (p.targetDir.isEmpty())
+        return p;
+    const QString source = db.config(QString::fromLatin1(cfg::SourceDir));
+    if (!source.isEmpty() && canonicalDir(source) != canonicalDir(dir)) {
+        p.state = DbProbe::State::Moved;
+        p.setUpFor = source;
+        return p;
+    }
+    p.state = DbProbe::State::Ready;
+    return p;
+}
+
+bool SelectionDb::openFile(const QString &dir, bool create) {
     close();
-    const QByteArray path = dbPath(dir).toUtf8();
-    if (sqlite3_open_v2(path.constData(), &m_db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
-                        nullptr) != SQLITE_OK) {
+    const int flags = SQLITE_OPEN_READWRITE | (create ? SQLITE_OPEN_CREATE : 0);
+    if (sqlite3_open_v2(dbPath(dir).toUtf8().constData(), &m_db, flags, nullptr) != SQLITE_OK) {
         setErrorFromDb();
         close();
         return false;
     }
     sqlite3_busy_timeout(m_db, 2000);
-    if (!exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")
+    return true;
+}
+
+bool SelectionDb::open(const QString &dir) {
+    if (!openFile(dir, false))
+        return false;
+    // Check before anything writes (even the journal mode is a write).
+    const Content content = inspect(dir);
+    if (content == Content::Empty)
+        m_error = QStringLiteral("%1 is not set up yet").arg(dbPath(dir));
+    if (content != Content::Picsel
+        || !exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")
         || !initSchema()) {
-        close();
-        return false;
-    }
-    const QString appId = config(QString::fromLatin1(cfg::AppId));
-    if (!appId.isEmpty() && appId != QLatin1String(kAppId)) {
-        m_error = QStringLiteral("picsel.db belongs to another application (%1)").arg(appId);
-        close();
-        return false;
-    }
-    const int version = config(QString::fromLatin1(cfg::SchemaVersion), QStringLiteral("0")).toInt();
-    if (version > kSchemaVersion) {
-        m_error = QStringLiteral("picsel.db was written by a newer picsel (schema %1)").arg(version);
         close();
         return false;
     }
@@ -97,16 +251,31 @@ bool SelectionDb::open(const QString &dir) {
 }
 
 bool SelectionDb::create(const QString &dir, const QString &targetDir, bool defaultSelected) {
-    if (!open(dir))
+    if (!openFile(dir, true))
         return false;
-    Transaction tx(*this);
-    const bool ok = setConfig(QString::fromLatin1(cfg::AppId), QString::fromLatin1(kAppId))
-        && setConfig(QString::fromLatin1(cfg::SchemaVersion), QString::number(kSchemaVersion))
-        && setConfig(QString::fromLatin1(cfg::SourceDir), QDir(dir).absolutePath())
-        && setConfig(QString::fromLatin1(cfg::TargetDir), QDir(targetDir).absolutePath())
-        && setConfig(QString::fromLatin1(cfg::DefaultSelected),
-                     defaultSelected ? QStringLiteral("1") : QStringLiteral("0"));
-    return ok && tx.commit();
+    if (inspect(dir) == Content::Rejected
+        || !exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")) {
+        close();
+        return false;
+    }
+    // Tables and marker together, so a crash never leaves unmarked tables.
+    bool ok = false;
+    {
+        Transaction tx(*this); // rolls back before close() below on failure
+        ok = initSchema()
+            && setConfig(QString::fromLatin1(cfg::AppId), QString::fromLatin1(kAppId))
+            && setConfig(QString::fromLatin1(cfg::SchemaVersion), QString::number(kSchemaVersion))
+            && setConfig(QString::fromLatin1(cfg::SourceDir), QDir(dir).absolutePath())
+            && setConfig(QString::fromLatin1(cfg::TargetDir), QDir(targetDir).absolutePath())
+            && setConfig(QString::fromLatin1(cfg::DefaultSelected),
+                         defaultSelected ? QStringLiteral("1") : QStringLiteral("0"))
+            && tx.commit();
+    }
+    if (!ok) {
+        close();
+        return false;
+    }
+    return true;
 }
 
 void SelectionDb::close() {

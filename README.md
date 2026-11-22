@@ -18,6 +18,9 @@ when you are done.
   start as selected or not selected. It then keeps `picsel.db` in the folder.
   Every change is saved immediately, so you can close picsel (or it can crash)
   and continue later.
+- If a folder was copied, moved or renamed since it was set up, picsel asks
+  for the destination again (the selection is kept). A `picsel.db` that is
+  not picsel's, or is damaged, is never modified: picsel explains and stops.
 - Files added, deleted or renamed in the folder while picsel runs are picked up
   automatically. New files get the folder's default state.
 

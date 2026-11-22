@@ -2,10 +2,12 @@
 #include "core/SelectionDb.h"
 
 #include <QDir>
+#include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
 #include <algorithm>
 #include <sqlite3.h>
+#include <unistd.h>
 
 using namespace picsel;
 
@@ -35,6 +37,25 @@ QStringList names(const SelectionDb &db) {
         out << f.name;
     std::sort(out.begin(), out.end());
     return out;
+}
+
+// Runs |sql| on dir/picsel.db with plain SQLite, as another program would.
+bool rawExec(const QString &dir, const char *sql) {
+    sqlite3 *db = nullptr;
+    const bool ok = sqlite3_open(SelectionDb::dbPath(dir).toUtf8().constData(), &db) == SQLITE_OK
+        && sqlite3_exec(db, sql, nullptr, nullptr, nullptr) == SQLITE_OK;
+    sqlite3_close(db);
+    return ok;
+}
+
+QByteArray contents(const QString &path) {
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+bool writeFile(const QString &path, const QByteArray &data) {
+    QFile f(path);
+    return f.open(QIODevice::WriteOnly) && f.write(data) == data.size();
 }
 
 } // namespace
@@ -301,6 +322,168 @@ private slots:
         db.close();
         QVERIFY(db.open(dir.path()));
         QCOMPARE(names(db), (QStringList{"a.jpg", "keep.jpg"}));
+    }
+
+    // Another program's SQLite file is never written to, not even the
+    // journal mode, by open(), create() or probe().
+    void foreignDatabaseUntouched() {
+        QTemporaryDir dir;
+        QVERIFY(rawExec(dir.path(), "CREATE TABLE notes(id INTEGER, txt TEXT);"
+                                    "INSERT INTO notes VALUES(1, 'precious');"));
+        const QString path = SelectionDb::dbPath(dir.path());
+        const QByteArray before = contents(path);
+        const DbProbe p = SelectionDb::probe(dir.path());
+        QCOMPARE(p.state, DbProbe::State::Unusable);
+        QVERIFY(p.error.contains("not a picsel database"));
+        SelectionDb db;
+        QVERIFY(!db.open(dir.path()));
+        QVERIFY(!db.create(dir.path(), dir.path(), false));
+        QVERIFY(db.lastError().contains("not a picsel database"));
+        QCOMPARE(contents(path), before);
+        QVERIFY(!QFile::exists(path + "-wal"));
+    }
+
+    void garbageFileUntouched() {
+        QTemporaryDir dir;
+        const QString path = SelectionDb::dbPath(dir.path());
+        const QByteArray garbage = QByteArray("not a database\n").repeated(100);
+        QVERIFY(writeFile(path, garbage));
+        QCOMPARE(SelectionDb::probe(dir.path()).state, DbProbe::State::Unusable);
+        SelectionDb db;
+        QVERIFY(!db.create(dir.path(), dir.path(), false));
+        QCOMPARE(contents(path), garbage);
+    }
+
+    void probeStates() {
+        QTemporaryDir dir, target;
+        const QString path = SelectionDb::dbPath(dir.path());
+        QCOMPARE(SelectionDb::probe(dir.path()).state, DbProbe::State::NotSetUp); // no file
+
+        QVERIFY(writeFile(path, {}));
+        QCOMPARE(SelectionDb::probe(dir.path()).state, DbProbe::State::NotSetUp); // empty file
+
+        {
+            SelectionDb db;
+            QVERIFY2(db.create(dir.path(), target.path(), true), qPrintable(db.lastError()));
+        }
+        DbProbe p = SelectionDb::probe(dir.path());
+        QCOMPARE(p.state, DbProbe::State::Ready);
+        QCOMPARE(p.targetDir, target.path());
+        QVERIFY(p.defaultSelected);
+
+        // Copied, moved or renamed: set up for another folder.
+        QVERIFY(rawExec(dir.path(), "UPDATE config SET value = '/elsewhere/pending' WHERE key = 'source_dir'"));
+        p = SelectionDb::probe(dir.path());
+        QCOMPARE(p.state, DbProbe::State::Moved);
+        QCOMPARE(p.setUpFor, QString("/elsewhere/pending"));
+
+        QVERIFY(rawExec(dir.path(), "DELETE FROM config WHERE key = 'target_dir'"));
+        QCOMPARE(SelectionDb::probe(dir.path()).state, DbProbe::State::NotSetUp);
+
+        QVERIFY(rawExec(dir.path(), "UPDATE config SET value = '99' WHERE key = 'schema_version'"));
+        QCOMPARE(SelectionDb::probe(dir.path()).state, DbProbe::State::Unusable);
+    }
+
+    void probeRejectsNonFiles() {
+        QTemporaryDir dir;
+        const QString path = SelectionDb::dbPath(dir.path());
+        QVERIFY(QDir(dir.path()).mkdir("picsel.db"));
+        DbProbe p = SelectionDb::probe(dir.path());
+        QCOMPARE(p.state, DbProbe::State::Unusable);
+        QVERIFY(p.error.contains("not a regular file"));
+        QVERIFY(QDir(dir.path()).rmdir("picsel.db"));
+
+        QVERIFY(QFile::link("/nonexistent/picsel.db", path)); // dangling symlink
+        QCOMPARE(SelectionDb::probe(dir.path()).state, DbProbe::State::Unusable);
+    }
+
+    void probeRejectsReadOnly() {
+        if (::geteuid() == 0)
+            QSKIP("root ignores permissions (e.g. a container build)");
+        QTemporaryDir dir;
+        {
+            SelectionDb db;
+            QVERIFY(db.create(dir.path(), dir.path(), false));
+        }
+        const QString path = SelectionDb::dbPath(dir.path());
+        QVERIFY(QFile::setPermissions(path, QFile::ReadOwner));
+        DbProbe p = SelectionDb::probe(dir.path());
+        QCOMPARE(p.state, DbProbe::State::Unusable);
+        QVERIFY(p.error.contains("read-only"));
+        QVERIFY(QFile::setPermissions(path, QFile::ReadOwner | QFile::WriteOwner));
+
+        QVERIFY(QFile::setPermissions(dir.path(), QFile::ReadOwner | QFile::ExeOwner));
+        p = SelectionDb::probe(dir.path());
+        QVERIFY(QFile::setPermissions(dir.path(), QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+        QCOMPARE(p.state, DbProbe::State::Unusable);
+        QVERIFY(p.error.contains("not writable"));
+    }
+
+    // Tables without the picsel marker, as an older picsel left them when
+    // it crashed during set-up: accepted only while empty.
+    void halfSetUpDatabase() {
+        QTemporaryDir dir;
+        QVERIFY(rawExec(dir.path(),
+                        "CREATE TABLE config(key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);"
+                        "CREATE TABLE files(name TEXT PRIMARY KEY NOT NULL, selected INTEGER NOT NULL DEFAULT 0,"
+                        " size INTEGER NOT NULL DEFAULT 0, mtime_ns INTEGER NOT NULL DEFAULT 0,"
+                        " inode INTEGER NOT NULL DEFAULT 0, exif_time TEXT, camera TEXT, dhash INTEGER);"));
+        QCOMPARE(SelectionDb::probe(dir.path()).state, DbProbe::State::NotSetUp);
+        SelectionDb db;
+        QVERIFY(!db.open(dir.path())); // not set up yet
+        QVERIFY2(db.create(dir.path(), dir.path(), false), qPrintable(db.lastError()));
+        db.close();
+        QCOMPARE(SelectionDb::probe(dir.path()).state, DbProbe::State::Ready);
+
+        QTemporaryDir other;
+        QVERIFY(rawExec(other.path(), "CREATE TABLE config(key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);"
+                                      "INSERT INTO config VALUES('owner', 'someone');"));
+        QCOMPARE(SelectionDb::probe(other.path()).state, DbProbe::State::Unusable);
+    }
+
+    void damagedSchemaRefused() {
+        QTemporaryDir dir;
+        {
+            SelectionDb db;
+            QVERIFY(db.create(dir.path(), dir.path(), false));
+        }
+        QVERIFY(rawExec(dir.path(), "DROP TABLE files; CREATE TABLE files(name TEXT PRIMARY KEY, selected INTEGER)"));
+        const DbProbe p = SelectionDb::probe(dir.path());
+        QCOMPARE(p.state, DbProbe::State::Unusable);
+        QVERIFY(p.error.contains("no column"));
+        SelectionDb db;
+        QVERIFY(!db.open(dir.path()));
+    }
+
+    // A marked database whose files table is missing gets it back.
+    void missingFilesTableCreated() {
+        QTemporaryDir dir;
+        {
+            SelectionDb db;
+            QVERIFY(db.create(dir.path(), dir.path(), false));
+        }
+        QVERIFY(rawExec(dir.path(), "DROP TABLE files"));
+        QCOMPARE(SelectionDb::probe(dir.path()).state, DbProbe::State::Ready);
+        SelectionDb db;
+        QVERIFY2(db.open(dir.path()), qPrintable(db.lastError()));
+        QVERIFY(db.insertFile(makeFile("a.jpg")));
+    }
+
+    // Setting a folder up again (after a move) keeps the selection.
+    void createAgainKeepsFiles() {
+        QTemporaryDir dir, target1, target2;
+        {
+            SelectionDb db;
+            QVERIFY(db.create(dir.path(), target1.path(), false));
+            QVERIFY(db.insertFile(makeFile("a.jpg", true)));
+            QVERIFY(db.insertFile(makeFile("b.jpg", false)));
+        }
+        SelectionDb db;
+        QVERIFY2(db.create(dir.path(), target2.path(), true), qPrintable(db.lastError()));
+        QCOMPARE(db.config(cfg::TargetDir), target2.path());
+        QCOMPARE(names(db), QStringList({"a.jpg", "b.jpg"}));
+        QCOMPARE(find(db, "a.jpg")->selected, true);
+        QCOMPARE(find(db, "b.jpg")->selected, false);
     }
 };
 
