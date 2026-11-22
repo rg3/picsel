@@ -212,3 +212,19 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   - `tools/set_exif.py` writes a minimal EXIF block.
   - `tools/init_db.py DIR` skips the setup window.
   - `build/tools/bench_decode DIR` times thumbnail decoding.
+  - `tools/make_demo.py DIR` draws a lake-weekend folder of landscape
+    pictures (bursts included, plus a video) for screenshots; everything is
+    generated, so it can be published. Never use real photos for public
+    material.
+  - `tools/make_screenshots.sh` regenerates `data/screenshots/` with an
+    offscreen automation run. It uses a private mount namespace
+    (`unshare`) so the paths picsel shows read `/home/demo/...`, plus fresh
+    settings and `TZ=UTC` for reproducible output.
+
+## Releases
+
+- Bump the version in the top-level `CMakeLists.txt`, add a `<release>` to
+  the metainfo, update the date and version in `data/picsel.1`, and point
+  the metainfo screenshot URLs at the new tag (they are pinned to a tag so
+  a release always shows its own screenshots).
+- Regenerate the screenshots if the UI changed, then tag `vX.Y.Z`.

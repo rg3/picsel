@@ -2,6 +2,8 @@
 
 Pick which pictures (and videos) of a folder to keep, quickly, with the keyboard.
 
+![picsel showing a folder of lake pictures, some selected and some not](data/screenshots/mosaic.png)
+
 Typical use: dump an event's photos into `2026-11-21-Whatever/pending-selection/`,
 right-click any picture in the file manager → **Open with picsel**, mark the
 keepers (or the rejects), then press **Move** to move the selected ones into the
@@ -129,6 +131,8 @@ version 3 or (at your option) any later version. See [LICENSE](LICENSE).
 - `tools/make_testset.sh DIR [N] [VIDEOS]` builds synthetic test folders,
   `tools/init_db.py DIR` skips the setup window, `build/tools/bench_decode DIR`
   (with `-DPICSEL_BUILD_TOOLS=ON`) times thumbnail decoding.
+- `tools/make_screenshots.sh` regenerates `data/screenshots/` (AppStream)
+  from a synthetic folder drawn by `tools/make_demo.py` (needs Pillow).
 - `PICSEL_AUTOMATION=script.txt picsel DIR` plays a script of key presses,
   clicks (logical coordinates) and screenshots against picsel's own window; see
   `src/app/Automation.h`. With `QT_QPA_PLATFORM=offscreen` no window appears.
