@@ -1,8 +1,9 @@
 # picsel
 
 Qt 6 / QML / C++20 desktop app for choosing which pictures and videos of a folder to keep.
-The original spec is in IDEA.md. Read docs/ARCHITECTURE.md before non-trivial changes: it
-covers the design, the threading model and known traps.
+The original spec is IDEA.md in early commits (`git show c12d91e:IDEA.md`); it was removed for
+the public release. Read docs/ARCHITECTURE.md before non-trivial changes: it covers the
+design, the threading model and known traps.
 
 - Build: `cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX=$HOME/.local -DPICSEL_BUILD_TOOLS=ON && cmake --build build`
 - Tests: `(cd build && ctest)`. Install: `cmake --install build`.
