@@ -3,6 +3,7 @@
 
 #include "Automation.h"
 #include "Session.h"
+#include "SystemCheck.h"
 #include "core/SelectionDb.h"
 #include "image/ImageProviders.h"
 
@@ -171,14 +172,10 @@ QObject *Application::createWindow(const char *type, const QVariantMap &props) {
 }
 
 void Application::showPicker() {
-    QObject *w = createWindow("FolderPicker", {});
+    QObject *w = createWindow("FolderPicker", {{QStringLiteral("portalDialog"), portalFolderDialogs()}});
     if (auto *win = qobject_cast<QQuickWindow *>(w)) {
         ++m_pendingWindows;
-        // Closing only hides a window; the picker is done for good by then.
-        connect(win, &QWindow::visibleChanged, win, [win](bool visible) {
-            if (!visible)
-                win->deleteLater();
-        });
+        connect(win, SIGNAL(finished()), win, SLOT(deleteLater())); // QML signal
         Automation::startIfRequested(win);
     } else {
         delete w;

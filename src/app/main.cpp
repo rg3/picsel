@@ -45,6 +45,11 @@ QPalette darkPalette() {
 } // namespace
 
 int main(int argc, char *argv[]) {
+    // Native folder dialogs: KDE's need a QtWidgets app, but Qt's portal
+    // theme asks the desktop (KDE, GNOME...) to show its own, and keeps the
+    // desktop's theme for everything else. A theme the user chose wins.
+    if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORMTHEME"))
+        qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("picsel"));
     QGuiApplication::setOrganizationName(QStringLiteral("picsel"));
@@ -52,8 +57,11 @@ int main(int argc, char *argv[]) {
     QGuiApplication::setApplicationVersion(QStringLiteral(PICSEL_VERSION));
     QGuiApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/" PICSEL_APP_ID ".svg")));
     picsel::initMetadataLibrary();
-    // The ffmpeg media backend logs every file's streams at info level.
-    QLoggingCategory::setFilterRules(QStringLiteral("qt.multimedia.ffmpeg*.info=false"));
+    // The ffmpeg media backend logs every file's streams at info level. Qt
+    // also warns when the portal already knows our app id (harmless; picsel
+    // uses no other desktop services that log there).
+    QLoggingCategory::setFilterRules(QStringLiteral("qt.multimedia.ffmpeg*.info=false\n"
+                                                    "qt.qpa.services.warning=false"));
     QQuickStyle::setStyle(QStringLiteral("Fusion"));
     QGuiApplication::setPalette(darkPalette());
 
@@ -87,7 +95,7 @@ int main(int argc, char *argv[]) {
     if (!standalone && picsel::Application::forwardToRunningInstance(path))
         return 0;
 
-    picsel::Application picselApp;
+    picsel::Application picselApp(nullptr);
     if (!standalone)
         picselApp.listen();
     picselApp.openPath(path);

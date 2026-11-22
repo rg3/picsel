@@ -12,7 +12,7 @@ endif()
 option(PICSEL_BUILD_TOOLS "Build developer tools (bench_decode)" OFF)
 include(CTest) # BUILD_TESTING, ON by default
 
-set(picsel_qt_components Core Gui Qml Quick QuickControls2 Concurrent Multimedia Network)
+set(picsel_qt_components Core Gui DBus Qml Quick QuickControls2 Concurrent Multimedia Network)
 if(BUILD_TESTING)
   list(APPEND picsel_qt_components Test)
 endif()

@@ -10,4 +10,8 @@ namespace picsel {
 // it cannot start without is missing (codecs only degrade videos).
 int runSystemCheck();
 
+// True when folder dialogs will be the desktop's own, shown through the XDG
+// desktop portal (Qt's portal theme, FileChooser portal >= 3 for folders).
+bool portalFolderDialogs();
+
 } // namespace picsel

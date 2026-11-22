@@ -141,13 +141,27 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   codecs, and the SVG plugin don't show up as link dependencies.
   `picsel --check` (`src/app/SystemCheck.*`) reports them; keep its module
   list in sync with the QML imports and the README.
-- **Folder dialogs:** picsel is a QGuiApplication, so KDE offers no native
-  dialog and Qt Quick draws its own. That one needs a parent window: a
-  parentless `FolderDialog` is silently never shown, which is why the start
-  picker (`FolderPicker.qml`, used when there is no path, e.g. from the app
-  menu) is a window hosting the dialog. Qt >= 6.10 also shows such dialogs
-  as separate popup windows; the picker sets `popupType` to `Popup.Item`
-  when the property exists, so the dialog fills its own window.
+- **QML singleton:** `Application` is the `App` singleton through its
+  static `create()`, which returns the one made in `main()`. Qt prefers a
+  default constructor over `create()`, so `Application` must not have one:
+  with `Application(QObject *parent = nullptr)` every QML engine built its
+  own `App`, with its own engine and window bookkeeping, and quitting after
+  the start picker went wrong.
+- **Folder dialogs:** picsel is a QGuiApplication, so KDE's platform theme
+  offers no native dialog (it needs QtWidgets). `main.cpp` therefore picks
+  Qt's `xdgdesktopportal` theme unless `QT_QPA_PLATFORMTHEME` is set: the
+  desktop's portal shows its own dialog, and the desktop theme still applies
+  to everything else. Qt warns (`qt.qpa.services`) that registering the app
+  id with the portal failed because the connection already has one; that is
+  harmless and filtered.
+  - Without a portal, Qt Quick draws its own dialog, which needs a parent
+    window: a parentless `FolderDialog` is silently never shown. So the
+    start picker (`FolderPicker.qml`, used when there is no path, e.g. from
+    the app menu) is a window hosting the dialog, hidden when
+    `portalFolderDialogs()` says the portal will show it. Qt >= 6.10 shows
+    Quick dialogs as separate popup windows; the picker sets `popupType` to
+    `Popup.Item` when the property exists, so the dialog fills its window.
+  - A KDE portal dialog may return the folder with a trailing slash.
 - **Natural sort:** `QCollator` ignores numeric mode in the C locale, so
   `compareNames` is a hand-written, locale-independent natural sort.
 - **No mmap for decoding:** a file truncated by another program

@@ -21,7 +21,9 @@ class Application : public QObject {
     QML_SINGLETON
 
 public:
-    explicit Application(QObject *parent = nullptr);
+    // No default constructor on purpose: QML prefers one over create() and
+    // would build a separate App (with its own engine) per QML engine.
+    explicit Application(QObject *parent);
     ~Application() override;
 
     static Application *instance() { return s_instance; }

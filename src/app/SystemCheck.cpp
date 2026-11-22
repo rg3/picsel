@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "SystemCheck.h"
 
+#include <QDBusConnection>
+#include <QDBusMessage>
+#include <QDBusVariant>
 #include <QIcon>
 #include <QMediaFormat>
 #include <QPixmap>
@@ -17,7 +20,22 @@ void report(const char *what, bool ok, const char *ifMissing) {
     std::printf("  %-34s %s\n", what, ok ? "ok" : ifMissing);
 }
 
+uint fileChooserPortalVersion() {
+    auto msg = QDBusMessage::createMethodCall(
+        QStringLiteral("org.freedesktop.portal.Desktop"), QStringLiteral("/org/freedesktop/portal/desktop"),
+        QStringLiteral("org.freedesktop.DBus.Properties"), QStringLiteral("Get"));
+    msg << QStringLiteral("org.freedesktop.portal.FileChooser") << QStringLiteral("version");
+    const QDBusMessage reply = QDBusConnection::sessionBus().call(msg, QDBus::Block, 2000);
+    if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().isEmpty())
+        return 0;
+    return reply.arguments().constFirst().value<QDBusVariant>().variant().toUInt();
+}
+
 } // namespace
+
+bool portalFolderDialogs() {
+    return qgetenv("QT_QPA_PLATFORMTHEME") == "xdgdesktopportal" && fileChooserPortalVersion() >= 3;
+}
 
 int runSystemCheck() {
     bool fatal = false;
@@ -51,6 +69,8 @@ int runSystemCheck() {
     std::printf("Other (optional):\n");
     const QIcon icon(QStringLiteral(":/icons/" PICSEL_APP_ID ".svg"));
     report("SVG icons (Qt SVG)", !icon.pixmap(64).isNull(), "missing (no window icon)");
+    report("desktop folder dialogs (portal)", portalFolderDialogs(),
+           "missing (Qt's own dialog is used; needs xdg-desktop-portal)");
 
     std::printf(fatal ? "picsel cannot start: install the missing QML modules.\n" : "picsel can run.\n");
     return fatal ? 1 : 0;

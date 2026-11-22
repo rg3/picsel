@@ -54,7 +54,7 @@ Build dependencies:
 |---|---|---|
 | C++20 compiler | | tested with GCC 16 |
 | CMake, pkg-config | CMake ≥ 3.24 | Ninja recommended |
-| Qt | ≥ 6.8 | Core, Gui, Qml, Quick, QuickControls2, Concurrent, Multimedia, Network; Test for the unit tests |
+| Qt | ≥ 6.8 | Core, Gui, DBus, Qml, Quick, QuickControls2, Concurrent, Multimedia, Network; Test for the unit tests |
 | libjpeg | | libjpeg-turbo recommended (fast DCT-scaled decoding) |
 | exiv2 | 0.28 | 0.27 should also work (untested) |
 | SQLite 3 | | |
@@ -68,6 +68,7 @@ separately):
 | Qt Multimedia ffmpeg backend plugin | video thumbnails and playback |
 | H.264 decoder in that ffmpeg; H.265/HEVC for newer phones; AAC for sound | the respective videos |
 | Qt SVG (icon engine or image plugin) | the window icon |
+| xdg-desktop-portal with a FileChooser backend (e.g. the KDE or GTK one) | the desktop's own folder dialogs; without it Qt draws a plainer one |
 
 `picsel --check` reports which of these are present and exits with status 1
 if picsel cannot start. Run it when something looks wrong, or from a package

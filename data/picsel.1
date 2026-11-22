@@ -78,6 +78,12 @@ Global settings, such as camera clock corrections.
 If set, do not hand the folder to a running instance and do not accept
 folders from later launches.
 .TP
+.B QT_QPA_PLATFORMTHEME
+If unset, picsel uses Qt's
+.B xdgdesktopportal
+theme, so folder dialogs are the desktop's own, shown through the XDG
+desktop portal. Set it to choose another Qt platform theme.
+.TP
 .B QT_FFMPEG_DEBUG
 If set, keep the full log of Qt's ffmpeg media backend, which picsel
 otherwise quietens.

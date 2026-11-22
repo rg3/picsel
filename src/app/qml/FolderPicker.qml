@@ -5,18 +5,21 @@ import QtQuick.Dialogs
 import Picsel
 
 // Shown when picsel starts without a path (e.g. from the app menu).
-// FolderDialog needs a window: without a native dialog (KDE's needs a
-// QtWidgets app) Qt Quick draws its own one for a parent window, and a
-// parentless one is never shown. It is drawn inside this window rather than
-// as a second window next to an empty one.
+//
+// With the desktop portal (portalDialog), the desktop shows its own dialog
+// and this window stays hidden. Otherwise Qt Quick draws its own dialog,
+// which needs a parent window (a parentless one is never shown): this
+// window, with the dialog drawn inside it rather than as a second window.
 ApplicationWindow {
     id: root
 
+    required property bool portalDialog
     property bool done: false
+    signal finished // C++ deletes the window
 
     width: 640
     height: 440
-    visible: true
+    visible: !portalDialog
     title: qsTr("Choose a folder of pictures — picsel")
     color: Theme.panel
     palette: Theme.palette
@@ -30,13 +33,18 @@ ApplicationWindow {
         else
             App.dialogClosed()
         close()
+        finished()
     }
 
     FolderDialog {
         id: dialog
         parentWindow: root
         title: qsTr("Choose a folder of pictures")
-        onAccepted: root.finish(selectedFolder.toString())
+        onAccepted: {
+            if (selectedFolder.toString() === "")
+                console.warn("folder dialog accepted without a folder")
+            root.finish(selectedFolder.toString())
+        }
         onRejected: root.finish("")
     }
 
