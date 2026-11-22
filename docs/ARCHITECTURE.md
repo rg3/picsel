@@ -141,6 +141,13 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   codecs, and the SVG plugin don't show up as link dependencies.
   `picsel --check` (`src/app/SystemCheck.*`) reports them; keep its module
   list in sync with the QML imports and the README.
+- **Folder dialogs:** picsel is a QGuiApplication, so KDE offers no native
+  dialog and Qt Quick draws its own. That one needs a parent window: a
+  parentless `FolderDialog` is silently never shown, which is why the start
+  picker (`FolderPicker.qml`, used when there is no path, e.g. from the app
+  menu) is a window hosting the dialog. Qt >= 6.10 also shows such dialogs
+  as separate popup windows; the picker sets `popupType` to `Popup.Item`
+  when the property exists, so the dialog fills its own window.
 - **Natural sort:** `QCollator` ignores numeric mode in the C locale, so
   `compareNames` is a hand-written, locale-independent natural sort.
 - **No mmap for decoding:** a file truncated by another program

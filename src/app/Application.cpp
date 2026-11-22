@@ -171,10 +171,19 @@ QObject *Application::createWindow(const char *type, const QVariantMap &props) {
 }
 
 void Application::showPicker() {
-    if (createWindow("FolderPicker", {}))
+    QObject *w = createWindow("FolderPicker", {});
+    if (auto *win = qobject_cast<QQuickWindow *>(w)) {
         ++m_pendingWindows;
-    else
+        // Closing only hides a window; the picker is done for good by then.
+        connect(win, &QWindow::visibleChanged, win, [win](bool visible) {
+            if (!visible)
+                win->deleteLater();
+        });
+        Automation::startIfRequested(win);
+    } else {
+        delete w;
         quitIfIdle();
+    }
 }
 
 void Application::showSetup(const QString &dir, const QString &highlight) {
