@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // DirWatcher: follows changes to a source folder with inotify.
 //
 // Only supported, non-database regular files are reported. The watcher keeps

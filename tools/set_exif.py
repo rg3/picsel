@@ -1,4 +1,5 @@
 #!/usr/bin/python3 -I
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Writes a minimal EXIF block into JPEG files (for picsel test data).
 
 usage: set_exif.py [--orientation N] [--date "YYYY:MM:DD HH:MM:SS"]

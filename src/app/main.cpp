@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 #include "Application.h"
+#include "SystemCheck.h"
 #include "core/Metadata.h"
 
 #include <QCommandLineParser>
@@ -46,9 +48,9 @@ int main(int argc, char *argv[]) {
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("picsel"));
     QGuiApplication::setOrganizationName(QStringLiteral("picsel"));
-    QGuiApplication::setDesktopFileName(QStringLiteral("picsel"));
+    QGuiApplication::setDesktopFileName(QStringLiteral(PICSEL_APP_ID));
     QGuiApplication::setApplicationVersion(QStringLiteral(PICSEL_VERSION));
-    QGuiApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/picsel.svg")));
+    QGuiApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/" PICSEL_APP_ID ".svg")));
     picsel::initMetadataLibrary();
     // The ffmpeg media backend logs every file's streams at info level.
     QLoggingCategory::setFilterRules(QStringLiteral("qt.multimedia.ffmpeg*.info=false"));
@@ -59,10 +61,15 @@ int main(int argc, char *argv[]) {
     parser.setApplicationDescription(QStringLiteral("Pick which pictures of a folder to keep."));
     parser.addHelpOption();
     parser.addVersionOption();
+    const QCommandLineOption checkOption(QStringLiteral("check"),
+        QStringLiteral("Check that the Qt modules, plugins and codecs picsel needs are installed."));
+    parser.addOption(checkOption);
     parser.addPositionalArgument(QStringLiteral("path"),
                                  QStringLiteral("A picture (opens its folder) or a folder."),
                                  QStringLiteral("[path]"));
     parser.process(app);
+    if (parser.isSet(checkOption))
+        return picsel::runSystemCheck();
 
     QString path;
     if (!parser.positionalArguments().isEmpty()) {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Minimal ISO-BMFF (MP4 / QuickTime MOV) metadata reader.
 //
 // Walks the top-level boxes (seeking over mdat, which is never read) and

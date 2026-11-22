@@ -1,0 +1,87 @@
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.TH PICSEL 1 2026-11-22 "picsel 0.1.0" "User Commands"
+.SH NAME
+picsel \- choose which pictures of a folder to keep
+.SH SYNOPSIS
+.B picsel
+.RI [ path ]
+.br
+.B picsel
+.B \-\-check
+.SH DESCRIPTION
+.B picsel
+shows the JPEG pictures and MP4/MOV videos of a folder as a mosaic. You
+mark the ones to keep (or the ones to reject) with the keyboard, then press
+.B Move
+to move the selected files into a destination folder (by default, the
+parent folder).
+.PP
+If
+.I path
+is a picture, picsel opens its folder with that picture highlighted. If it
+is a folder, picsel opens that folder. Without
+.IR path ,
+picsel asks for a folder. If picsel is already running, the folder opens in
+the running instance.
+.PP
+The first time a folder is opened, picsel asks for the destination folder
+and for whether pictures start as selected or not selected. Every change is
+saved immediately, so you can quit and continue later. Files added, removed
+or renamed while picsel runs are picked up automatically.
+.SH OPTIONS
+.TP
+.B \-\-check
+Check that the Qt modules, plugins and codecs picsel needs at run time are
+installed, print a report and exit. The exit status is 1 if picsel cannot
+start; missing video codecs only affect videos.
+.TP
+.BR \-h ", " \-\-help
+Show the command-line help and exit.
+.TP
+.BR \-v ", " \-\-version
+Show the version and exit.
+.SH KEYS
+.TP
+.BR S " / " D
+Select / deselect the current picture, then go to the next one.
+.TP
+.B T
+Toggle the selection without moving.
+.TP
+.B Arrows
+Move around (left and right wrap across rows).
+.TP
+.BR Home " / " End ", " PgUp " / " PgDn
+First / last picture, page up / down.
+.TP
+.BR Enter " or double click"
+Full view (Esc or Enter closes it).
+.TP
+.BR Space " / " M
+In the full view, play or pause a video / toggle its sound.
+.TP
+.BR + " / " \-
+Bigger / smaller thumbnails.
+.TP
+.B Ctrl+Z
+Undo selection changes.
+.SH FILES
+.TP
+.I picsel.db
+Per-folder state (selection, destination), kept inside the opened folder.
+.TP
+.I ~/.config/picsel/picsel.ini
+Global settings, such as camera clock corrections.
+.SH ENVIRONMENT
+.TP
+.B PICSEL_STANDALONE
+If set, do not hand the folder to a running instance and do not accept
+folders from later launches.
+.TP
+.B QT_FFMPEG_DEBUG
+If set, keep the full log of Qt's ffmpeg media backend, which picsel
+otherwise quietens.
+.SH NOTES
+picsel is Linux-only: it follows folder changes with inotify.
+.SH SEE ALSO
+https://github.com/rg3/picsel

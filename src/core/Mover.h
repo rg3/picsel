@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Mover: moves the selected files from the source folder to the target folder.
 //
 // Everything works on directory file descriptors with *at() syscalls. On the

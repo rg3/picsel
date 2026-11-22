@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 #include "Automation.h"
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QKeyEvent>
 #include <QKeySequence>
 #include <QMouseEvent>
 #include <QPointingDevice>
 #include <QTimer>
-#include <QTest>
 
 namespace picsel {
 
@@ -30,7 +31,12 @@ Automation::Automation(QQuickWindow *window, QStringList lines)
     : QObject(window), m_window(window), m_lines(std::move(lines)) {}
 
 static void sendKey(QWindow *w, const QKeyCombination &kc) {
-    QTest::keyClick(w, kc.key(), kc.keyboardModifiers());
+    const QString text = kc.keyboardModifiers() & ~Qt::ShiftModifier
+        ? QString() : QKeySequence(kc.key()).toString().toLower();
+    QKeyEvent press(QEvent::KeyPress, kc.key(), kc.keyboardModifiers(), text);
+    QCoreApplication::sendEvent(w, &press);
+    QKeyEvent release(QEvent::KeyRelease, kc.key(), kc.keyboardModifiers(), text);
+    QCoreApplication::sendEvent(w, &release);
 }
 
 static void sendClick(QWindow *w, QPointF pos, bool dbl) {

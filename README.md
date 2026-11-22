@@ -44,24 +44,78 @@ seconds apart with a coloured bar; the thresholds are adjustable.
 
 Global settings live in `~/.config/picsel/picsel.ini`.
 
+## Requirements
+
+picsel runs on Linux only: it follows folder changes with inotify.
+
+Build dependencies:
+
+| Component | Version | Notes |
+|---|---|---|
+| C++20 compiler | | tested with GCC 16 |
+| CMake, pkg-config | CMake ≥ 3.24 | Ninja recommended |
+| Qt | ≥ 6.8 | Core, Gui, Qml, Quick, QuickControls2, Concurrent, Multimedia, Network; Test for the unit tests |
+| libjpeg | | libjpeg-turbo recommended (fast DCT-scaled decoding) |
+| exiv2 | 0.28 | 0.27 should also work (untested) |
+| SQLite 3 | | |
+
+Run-time dependencies the linker doesn't see (distros often package them
+separately):
+
+| Component | Needed for |
+|---|---|
+| QML modules `QtQuick`, `QtQuick.Controls`, `QtQuick.Layouts`, `QtQuick.Dialogs`, `QtQuick.Effects`, `QtMultimedia` | starting at all |
+| Qt Multimedia ffmpeg backend plugin | video thumbnails and playback |
+| H.264 decoder in that ffmpeg; H.265/HEVC for newer phones; AAC for sound | the respective videos |
+| Qt SVG (icon engine or image plugin) | the window icon |
+
+`picsel --check` reports which of these are present and exits with status 1
+if picsel cannot start. Run it when something looks wrong, or from a package
+smoke test.
+
+Distribution notes:
+
+- **Fedora** (tested):
+
+  ```
+  sudo dnf install cmake ninja-build gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
+      qt6-qtmultimedia-devel qt6-qtsvg libjpeg-turbo-devel exiv2-devel sqlite-devel
+  ```
+
+  Fedora's own ffmpeg build leaves out some patent-encumbered decoders, so
+  H.264/HEVC videos may not play. The full ffmpeg from RPM Fusion has them.
+- **Debian/Ubuntu:** each QML module is a separate `qml6-module-*` package.
+  Qt 6.8 means Debian 13 or Ubuntu 25.04 and later.
+- **Arch:** the ffmpeg backend is a separate `qt6-multimedia-ffmpeg` package.
+
 ## Building
 
-Fedora packages:
-
 ```
-sudo dnf install qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtmultimedia-devel \
-    qt6-qtshadertools-devel libjpeg-turbo-devel exiv2-devel sqlite-devel ninja-build
-```
-
-H.264 video playback needs the full ffmpeg (RPM Fusion).
-
-```
-cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX=$HOME/.local
+cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX=/usr
 cmake --build build
 (cd build && ctest)                 # unit tests
-cmake --install build
-update-desktop-database ~/.local/share/applications
+sudo cmake --install build          # or: DESTDIR=/some/root cmake --install build
 ```
+
+Build options:
+
+- `-DBUILD_TESTING=OFF` skips the unit tests and the Qt Test dependency.
+  Optional test tools: the `ffmpeg` CLI (video tests are skipped without
+  it), `desktop-file-validate` and `appstreamcli` (validate the desktop file
+  and AppStream metainfo).
+- `-DPICSEL_BUILD_TOOLS=ON` also builds the developer tool `bench_decode`.
+
+The install puts `picsel` in `bin/`, plus its desktop file, icon, AppStream
+metainfo (all named `io.github.rg3.picsel`) and the `picsel.1` man page.
+
+For a per-user install use `-DCMAKE_INSTALL_PREFIX=$HOME/.local`, then run
+`update-desktop-database ~/.local/share/applications` so "Open with" lists
+picsel (packages do this through their own triggers).
+
+## Licence
+
+picsel is free software, released under the GNU General Public License,
+version 3 or (at your option) any later version. See [LICENSE](LICENSE).
 
 ## Development notes
 
@@ -73,7 +127,7 @@ update-desktop-database ~/.local/share/applications
 - `src/app`: `Session` (one per open folder), the list model, QML in `qml/`.
 - `tools/make_testset.sh DIR [N] [VIDEOS]` builds synthetic test folders,
   `tools/init_db.py DIR` skips the setup window, `build/tools/bench_decode DIR`
-  times thumbnail decoding.
+  (with `-DPICSEL_BUILD_TOOLS=ON`) times thumbnail decoding.
 - `PICSEL_AUTOMATION=script.txt picsel DIR` plays a script of key presses,
   clicks (logical coordinates) and screenshots against picsel's own window; see
-  `src/app/Automation.h`.
+  `src/app/Automation.h`. With `QT_QPA_PLATFORM=offscreen` no window appears.

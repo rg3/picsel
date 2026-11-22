@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // The list of files shown in the mosaic, in display order.
 #pragma once
 

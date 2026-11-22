@@ -125,10 +125,22 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 
 - **KDE taskbar icon:** Plasma ignores icon folders created after it started
   (the first install may create `~/.local/share/icons/hicolor`), so with
-  `Icon=picsel` the icon can be missing until the next login. The install
-  runs no cache updates (`update-desktop-database`, `kbuildsycoca6`): that
-  is left to the user or to packaging scripts. The SVG is also embedded and
-  set as the window icon (`:/icons/picsel.svg`).
+  `Icon=io.github.rg3.picsel` the icon can be missing until the next
+  login. The install runs no cache updates (`update-desktop-database`,
+  `kbuildsycoca6`): that is left to the user or to packaging scripts. The
+  SVG is also embedded and set as the window icon.
+- **App id:** `PICSEL_APP_ID` (`io.github.rg3.picsel`, top-level
+  `CMakeLists.txt`) names the desktop file, icon, AppStream metainfo and the
+  Wayland app_id (`setDesktopFileName`). Changing it breaks users' taskbar
+  pins and file associations. The application *name* stays `picsel`, which
+  keeps the settings in `~/.config/picsel/`.
+- **Install RPATH:** `qt_standard_project_setup` appends `$ORIGIN` entries
+  to `CMAKE_INSTALL_RPATH`; they are filtered out again because picsel
+  installs no libraries and distro checks reject them.
+- **Hidden run-time dependencies:** QML modules, the multimedia backend and
+  codecs, and the SVG plugin don't show up as link dependencies.
+  `picsel --check` (`src/app/SystemCheck.*`) reports them; keep its module
+  list in sync with the QML imports and the README.
 - **Natural sort:** `QCollator` ignores numeric mode in the C locale, so
   `compareNames` is a hand-written, locale-independent natural sort.
 - **No mmap for decoding:** a file truncated by another program
@@ -153,7 +165,10 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 
 - **Unit tests:** `ctest` in `build/`, 10 suites, about 27 s
   (`tst_watcher` ~16 s, `tst_videothumbnailer` ~9 s). The video tests
-  generate fixtures with the ffmpeg CLI.
+  generate fixtures with the ffmpeg CLI and skip without it. Two more tests
+  validate the desktop file and metainfo when `desktop-file-validate` and
+  `appstreamcli` are installed. `BUILD_TESTING=OFF` skips all of them (and
+  the Qt Test dependency); `PICSEL_BUILD_TOOLS=ON` builds `bench_decode`.
 - **UI checks without touching the desktop:**
   `PICSEL_AUTOMATION=script.txt picsel DIR` (`src/app/Automation.*`) injects
   key and mouse events into picsel's own window and saves screenshots.
@@ -162,8 +177,11 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
     opens a window on their screen.
   - Click coordinates are *logical*. The dev machine runs at 2× scale, so
     halve screenshot pixels.
-  - `QTest::mouseClick` on a QWindow did nothing on Wayland, so clicks are
-    sent as `QMouseEvent`s.
+  - Keys and clicks are plain `QKeyEvent`s and `QMouseEvent`s sent to the
+    window, so the app doesn't link Qt Test. Keys still trigger QML
+    `Shortcut`s. (`QTest::mouseClick` on a QWindow did nothing on Wayland.)
+  - `QT_QPA_PLATFORM=offscreen` runs scripts with no window on screen at
+    all; `shot` still works.
   - Don't use `/dev/uinput` (ydotool and similar): keys would reach whatever
     window has focus.
 - **Test data:**

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Near-duplicate detection for bursts of similar pictures.
 #pragma once
 

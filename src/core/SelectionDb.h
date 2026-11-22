@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // SelectionDb: the per-folder selection database (picsel.db).
 //
 // Every mutating call is its own transaction (or part of an explicit

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // QML image providers for thumbnails and full-view images.
 //
 // URLs look like image://thumb/<session>/<uid>/<version> (and image://full/…).

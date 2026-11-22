@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Session: everything about one open source folder (one window).
 #pragma once
 

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SystemCheck: `picsel --check`. Reports the run-time pieces that linking
+// doesn't guarantee and distros package separately: QML modules, the Qt
+// Multimedia backend and its codecs, and SVG icon support.
+#pragma once
+
+namespace picsel {
+
+// Prints a report to stdout. Returns 0 when picsel can run, 1 when something
+// it cannot start without is missing (codecs only degrade videos).
+int runSystemCheck();
+
+} // namespace picsel

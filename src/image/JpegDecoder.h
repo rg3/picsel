@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Fast, scaled picture decoding.
 //
 // JPEGs go through libjpeg-turbo with DCT-domain downscaling (1/2, 1/4, 1/8),

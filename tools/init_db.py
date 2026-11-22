@@ -1,4 +1,5 @@
 #!/usr/bin/python3 -I
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Creates a picsel.db in DIR without the setup dialog (for tests).
 usage: init_db.py DIR [TARGET] [--selected]"""
 import os, sqlite3, sys

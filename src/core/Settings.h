@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Global (not per-folder) settings, stored in ~/.config/picsel/picsel.conf.
 #pragma once
 

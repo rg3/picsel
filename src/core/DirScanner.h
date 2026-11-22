@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Listing of the pictures in a source folder and reconciliation with the DB.
 #pragma once
 

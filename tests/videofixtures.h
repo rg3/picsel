@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Test videos generated at test time with the ffmpeg CLI.
 #pragma once
 

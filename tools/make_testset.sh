@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Builds a test folder of synthetic pictures for picsel.
 #   make_testset.sh OUTDIR [COUNT] [VIDEOS]
 # Creates ~24 unique large JPEGs (DSLR 3:2, phone 16:9, portrait, EXIF-rotated)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Times thumbnail decoding of a folder through ImageCache, the same path the
 // mosaic uses.  usage: bench_decode DIR [WxH] [visibleCount]
 #include "core/DirScanner.h"

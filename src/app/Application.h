@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Application: owns the QML engine and one window per open folder, and makes
 // picsel single-instance (later launches forward their path over a socket).
 #pragma once

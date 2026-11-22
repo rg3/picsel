@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Photo metadata (EXIF) used for sorting and for the info panel.
 #pragma once
 

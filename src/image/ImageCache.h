@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // ImageCache: decodes pictures of a folder in the background, nearest to the
 // user's focus first, and keeps them in RAM within a byte budget.
 //

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Core + image library: no QML, unit-tested.
 add_library(picsel_core STATIC
   core/SelectionDb.cpp core/SelectionDb.h

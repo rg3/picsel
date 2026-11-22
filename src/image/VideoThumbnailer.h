@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // VideoThumbnailer: grabs a representative frame of videos with QtMultimedia.
 //
 // Each in-flight request uses one QMediaPlayer (reused across requests, up to

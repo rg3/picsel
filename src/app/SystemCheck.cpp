@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#include "SystemCheck.h"
+
+#include <QIcon>
+#include <QMediaFormat>
+#include <QPixmap>
+#include <QQmlComponent>
+#include <QQmlEngine>
+
+#include <cstdio>
+
+namespace picsel {
+
+namespace {
+
+void report(const char *what, bool ok, const char *ifMissing) {
+    std::printf("  %-34s %s\n", what, ok ? "ok" : ifMissing);
+}
+
+} // namespace
+
+int runSystemCheck() {
+    bool fatal = false;
+    std::printf("picsel %s, Qt %s\n", PICSEL_VERSION, qVersion());
+
+    // Keep in sync with the imports under src/app/qml.
+    std::printf("QML modules (required):\n");
+    QQmlEngine engine;
+    for (const char *module : {"QtQuick", "QtQuick.Controls", "QtQuick.Layouts", "QtQuick.Dialogs",
+                               "QtQuick.Effects", "QtMultimedia"}) {
+        QQmlComponent c(&engine);
+        c.setData(QByteArray("import QtQml\nimport ") + module + "\nQtObject {}\n", QUrl());
+        const bool ok = c.status() == QQmlComponent::Ready;
+        fatal |= !ok;
+        report(module, ok, "MISSING");
+    }
+
+    // An empty codec list also means no multimedia backend plugin at all.
+    std::printf("Video (optional: without it, videos show a placeholder):\n");
+    QMediaFormat any; // the supported*() getters are not const
+    const auto files = any.supportedFileFormats(QMediaFormat::Decode);
+    const auto video = any.supportedVideoCodecs(QMediaFormat::Decode);
+    const auto audio = any.supportedAudioCodecs(QMediaFormat::Decode);
+    report("multimedia backend", !files.isEmpty(), "MISSING (no Qt Multimedia backend plugin)");
+    report("MP4 container", files.contains(QMediaFormat::MPEG4), "missing");
+    report("QuickTime (.mov) container", files.contains(QMediaFormat::QuickTime), "missing");
+    report("H.264 decoder", video.contains(QMediaFormat::VideoCodec::H264), "missing");
+    report("H.265/HEVC decoder (newer phones)", video.contains(QMediaFormat::VideoCodec::H265), "missing");
+    report("AAC decoder (video sound)", audio.contains(QMediaFormat::AudioCodec::AAC), "missing");
+
+    std::printf("Other (optional):\n");
+    const QIcon icon(QStringLiteral(":/icons/" PICSEL_APP_ID ".svg"));
+    report("SVG icons (Qt SVG)", !icon.pixmap(64).isNull(), "missing (no window icon)");
+
+    std::printf(fatal ? "picsel cannot start: install the missing QML modules.\n" : "picsel can run.\n");
+    return fatal ? 1 : 0;
+}
+
+} // namespace picsel

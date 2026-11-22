@@ -1,9 +1,11 @@
 # HEIC/HEIF support: analysis (not implemented)
 
-Analysis from 2026-11-22, for when iPhone HEIC files show up. Nothing below is
-implemented yet.
+Preliminary analysis from 2026-11-22, done on the developer's machine (Fedora
+45 with KDE, RPM Fusion ffmpeg), for when iPhone HEIC files show up. Nothing
+below is implemented yet. Package names and build options are Fedora's and
+were not checked on other distributions.
 
-## What already works on Fedora 45
+## What already works on the developer's machine
 
 - **Decoding via Qt:** `kf6-kimageformats` ships `kimg_heif.so`, so
   `QImageReader` lists `heic heif hif` as readable (backed by `libheif` +

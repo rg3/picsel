@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Developer automation: when PICSEL_AUTOMATION=<script> is set, the script is
-// played against the first main window. Events are injected through Qt's
-// window-system interface, so they never reach other applications.
+// played against the first main window. Events are sent straight to that
+// QWindow, so they never reach other applications.
 //
 // Script commands, one per line (# comments allowed):
 //   key <sequence>      e.g. "key Right", "key S", "key Ctrl+Z"

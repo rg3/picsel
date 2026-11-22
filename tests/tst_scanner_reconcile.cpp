@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 #include "core/DirScanner.h"
 #include "core/SelectionDb.h"
 

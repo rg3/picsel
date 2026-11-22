@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.rg3.picsel</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>picsel</name>
+  <summary>Choose which pictures of a folder to keep</summary>
+  <developer id="io.github.rg3">
+    <name>Ricardo Garcia</name>
+  </developer>
+
+  <description>
+    <p>
+      picsel helps you go through the pictures and videos of a folder quickly
+      and decide which ones to keep. Open any picture of the folder, mark the
+      keepers (or the rejects) with the keyboard, then move the selected
+      files into your gallery folder.
+    </p>
+    <ul>
+      <li>Fast thumbnail mosaic and full view, driven by the keyboard</li>
+      <li>Every change is saved immediately, so you can stop and continue later</li>
+      <li>Sorting by date taken, with per-camera clock corrections</li>
+      <li>Bursts of similar shots are marked so you can pick the best one</li>
+      <li>Safe moves: conflicts are checked before anything is moved</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.rg3.picsel.desktop</launchable>
+  <provides>
+    <binary>picsel</binary>
+  </provides>
+
+  <url type="homepage">https://github.com/rg3/picsel</url>
+  <url type="bugtracker">https://github.com/rg3/picsel/issues</url>
+  <url type="vcs-browser">https://github.com/rg3/picsel</url>
+
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="0.1.0" date="2026-11-22">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>
