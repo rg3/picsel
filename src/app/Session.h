@@ -73,6 +73,9 @@ public:
     QString errorString() const { return m_error; }
 
     int sessionId() const { return m_id; }
+    // Image URLs for QML (see providerUrl).
+    Q_INVOKABLE QString thumbUrl(int uid, int version) const { return providerUrl(kThumbProvider, m_id, uid, version); }
+    Q_INVOKABLE QString fullUrl(int uid, int version) const { return providerUrl(kFullProvider, m_id, uid, version); }
     int fullPreloadPages() const { return kFullPreloadPages; }
     int columnsMin() const { return settings::kColumns.min; }
     int columnsMax() const { return settings::kColumns.max; }

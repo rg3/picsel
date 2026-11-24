@@ -132,7 +132,7 @@ FocusScope {
         delegate: Tile {
             width: grid.cellWidth
             height: grid.cellHeight
-            sessionId: root.session.sessionId
+            session: root.session
             highlighted: index === grid.currentIndex
             onClicked: { grid.currentIndex = index; root.forceActiveFocus() }
             onDoubleClicked: { grid.currentIndex = index; root.openFullView() }

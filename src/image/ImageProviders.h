@@ -49,6 +49,12 @@ struct ProviderEntry {
     std::shared_ptr<UidMap> uids;
 };
 
+// Provider names and URL format: built by providerUrl() and parsed by the
+// providers, nowhere else (QML asks Session::thumbUrl/fullUrl).
+inline constexpr const char *kThumbProvider = "thumb";
+inline constexpr const char *kFullProvider = "full";
+QString providerUrl(const char *provider, int sessionId, quint32 uid, int version);
+
 void registerProviderSession(int sessionId, ProviderEntry entry);
 void unregisterProviderSession(int sessionId);
 

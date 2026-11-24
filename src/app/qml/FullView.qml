@@ -135,7 +135,7 @@ FocusScope {
                 cache: false
                 smooth: true
                 source: page.thumbVersion > 0
-                        ? "image://thumb/%1/%2/%3".arg(root.session.sessionId).arg(page.uid).arg(page.thumbVersion)
+                        ? root.session.thumbUrl(page.uid, page.thumbVersion)
                         : ""
                 visible: (full.status !== Image.Ready || full.opacity < 1) && !(videoLoader.item && videoLoader.item.playing)
             }
@@ -151,7 +151,7 @@ FocusScope {
                 mipmap: true
                 visible: !page.isVideo
                 source: page.isVideo ? ""
-                        : "image://full/%1/%2/%3".arg(root.session.sessionId).arg(page.uid).arg(page.thumbVersion)
+                        : root.session.fullUrl(page.uid, page.thumbVersion)
                 opacity: status === Image.Ready ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 120 } }
             }

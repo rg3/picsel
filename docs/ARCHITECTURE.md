@@ -76,7 +76,8 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
     `clear()` (a file replaced under the same name). A removed entry is
     skipped until the next `setFiles()` lists it again.
 - **QML access:** QML gets images through `ThumbImageProvider` and
-  `FullImageProvider` (`image://thumb|full/<session>/<uid>/<version>`). Both
+  `FullImageProvider` (`image://thumb|full/<session>/<uid>/<version>`, built only by
+  `providerUrl()`; QML calls `Session::thumbUrl`/`fullUrl`). Both
   run on the engine's single pixmap reader thread and only touch the
   thread-safe cache plus a mutex-guarded uid→name map. File names never
   appear in URLs.

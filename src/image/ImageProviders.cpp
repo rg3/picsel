@@ -26,8 +26,14 @@ void unregisterProviderSession(int sessionId) {
     g_sessions.remove(sessionId);
 }
 
+QString providerUrl(const char *provider, int sessionId, quint32 uid, int version) {
+    // The version only makes QML reload; resolve() ignores it.
+    return QStringLiteral("image://%1/%2/%3/%4")
+        .arg(QLatin1String(provider)).arg(sessionId).arg(uid).arg(version);
+}
+
 namespace {
-// Resolves "<session>/<uid>/<version>" to a session and a file name.
+// Resolves "<session>/<uid>/<version>" (see providerUrl) to a session and a file name.
 std::optional<std::pair<ProviderEntry, QString>> resolve(const QString &id) {
     const QStringList parts = id.split(QLatin1Char('/'));
     if (parts.size() < 2)

@@ -18,7 +18,7 @@ Item {
     required property bool groupEnd
     required property real durationMs
 
-    property int sessionId: 0
+    property Session session
     property bool highlighted: false
 
     signal clicked()
@@ -74,7 +74,7 @@ Item {
                 smooth: true
                 mipmap: false
                 source: tile.thumbVersion > 0
-                        ? "image://thumb/%1/%2/%3".arg(tile.sessionId).arg(tile.uid).arg(tile.thumbVersion)
+                        ? tile.session.thumbUrl(tile.uid, tile.thumbVersion)
                         : ""
                 opacity: status === Image.Ready ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 90 } }
