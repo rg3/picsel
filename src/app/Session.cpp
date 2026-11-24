@@ -98,12 +98,21 @@ Session::Session(const QString &dir, QObject *parent)
 }
 
 Session::~Session() {
+    m_closing = true;
     delete m_moveJob; // cancels and joins the worker
     flushRemovals();
     m_metaPool.clear();
     m_metaPool.waitForDone();
     flushMetaWrites();
     unregisterProviderSession(m_id);
+}
+
+void Session::reportError(const QString &message) {
+    // The window is closing or gone: nobody would see a dialog.
+    if (m_closing)
+        qWarning().noquote() << "picsel:" << message;
+    else
+        emit errorOccurred(message);
 }
 
 void Session::fail(const QString &message) {
@@ -157,10 +166,11 @@ bool Session::loadFiles() {
         qWarning().noquote() << "picsel: cannot watch" << m_dir << m_watcher.errorString();
     bool readOk = false;
     const QVector<DiskFile> disk = scanDir(m_dir, &readOk);
+    const int scanErr = errno; // before anything else can change it
     if (!readOk) {
         // Never reconcile against a partial listing: that would drop the
         // choices of every file it missed.
-        fail(tr("Cannot list the files in %1: %2").arg(m_dir, qt_error_string(errno)));
+        fail(tr("Cannot list the files in %1: %2").arg(m_dir, qt_error_string(scanErr)));
         return false;
     }
     const QVector<DbFile> before = m_db.files(&readOk);
@@ -269,7 +279,7 @@ void Session::flushMetaWrites() {
     for (auto i = m_pendingMeta.cbegin(); ok && i != m_pendingMeta.cend(); ++i)
         ok = m_db.setMeta(i.key(), i.value());
     if (!ok || !tx.commit())
-        emit errorOccurred(tr("Could not save picture details: %1").arg(m_db.lastError()));
+        reportError(tr("Could not save picture details: %1").arg(m_db.lastError()));
     m_pendingMeta.clear();
 }
 
@@ -629,7 +639,7 @@ void Session::flushRemovals() {
         for (int i = 0; ok && i < names.size(); ++i)
             ok = m_db.removeFile(names[i]);
         if (!ok || !tx.commit())
-            emit errorOccurred(tr("Could not record removed files: %1").arg(m_db.lastError()));
+            reportError(tr("Could not record removed files: %1").arg(m_db.lastError()));
     }
     for (const QString &n : names)
         removeItem(n);

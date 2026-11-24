@@ -168,6 +168,8 @@ private:
     void recountSelected();
     bool applySelected(int row, bool selected, bool recordUndo);
     void fail(const QString &message);
+    // errorOccurred(), or only a log line while the session is being destroyed.
+    void reportError(const QString &message);
 
     const int m_id;
     const QString m_dir;
@@ -178,6 +180,7 @@ private:
     int m_selectedCount = 0;
     quint32 m_nextUid = 1;
     QString m_error;
+    bool m_closing = false;
 
     SelectionDb m_db;
     FileListModel m_model;

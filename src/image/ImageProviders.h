@@ -12,7 +12,6 @@
 
 #include <QHash>
 #include <QMutex>
-#include <QPointer>
 #include <QQuickAsyncImageProvider>
 #include <QQuickImageProvider>
 #include <QTimer>

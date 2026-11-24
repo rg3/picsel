@@ -101,12 +101,14 @@ void DirWatcher::reseed() {
     m_settleTimer.stop();
     m_moveTimer.stop();
     bool ok = false;
-    for (const DiskFile &f : scanDir(m_dir, &ok))
+    const QVector<DiskFile> files = scanDir(m_dir, &ok);
+    const int err = errno; // before anything else can change it
+    for (const DiskFile &f : files)
         m_known.insert(f.name);
     // An incomplete set only makes later events look like additions, which
     // the session reconciles; it never drops a file.
     if (!ok)
-        qWarning().noquote() << "picsel: cannot list" << m_dir << qt_error_string(errno);
+        qWarning().noquote() << "picsel: cannot list" << m_dir << qt_error_string(err);
 }
 
 std::optional<DiskFile> DirWatcher::statOf(const QString &name) const {
