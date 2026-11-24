@@ -3,8 +3,6 @@
 
 #include <QSettings>
 
-#include <algorithm>
-
 namespace picsel::settings {
 
 namespace {
@@ -12,15 +10,21 @@ QSettings store() {
     return QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("picsel"),
                      QStringLiteral("picsel"));
 }
+
+// Hand-edited or older values outside the range are clamped on the way in.
+int readInt(const QString &key, IntSetting s) {
+    bool ok = false;
+    const int v = store().value(key).toInt(&ok);
+    return ok ? s.clamp(v) : s.fallback;
+}
+
+void writeInt(const QString &key, IntSetting s, int v) {
+    store().setValue(key, s.clamp(v));
+}
 } // namespace
 
-int columns() {
-    return std::clamp(store().value(QStringLiteral("view/columns"), 4).toInt(), 2, 6);
-}
-
-void setColumns(int n) {
-    store().setValue(QStringLiteral("view/columns"), std::clamp(n, 2, 6));
-}
+int columns() { return readInt(QStringLiteral("view/columns"), kColumns); }
+void setColumns(int n) { writeInt(QStringLiteral("view/columns"), kColumns, n); }
 
 CameraOffsets cameraOffsets() {
     CameraOffsets out;
@@ -53,13 +57,13 @@ void setCameraOffset(const QString &camera, qint64 seconds) {
     s.endArray();
 }
 
-int similarSeconds() { return store().value(QStringLiteral("similar/seconds"), 10).toInt(); }
-void setSimilarSeconds(int v) { store().setValue(QStringLiteral("similar/seconds"), v); }
+int similarSeconds() { return readInt(QStringLiteral("similar/seconds"), kSimilarSeconds); }
+void setSimilarSeconds(int v) { writeInt(QStringLiteral("similar/seconds"), kSimilarSeconds, v); }
 bool showDetails() { return store().value(QStringLiteral("view/showDetails"), false).toBool(); }
 void setShowDetails(bool on) { store().setValue(QStringLiteral("view/showDetails"), on); }
 bool showSimilar() { return store().value(QStringLiteral("similar/show"), true).toBool(); }
 void setShowSimilar(bool on) { store().setValue(QStringLiteral("similar/show"), on); }
-int similarBits() { return store().value(QStringLiteral("similar/bits"), 10).toInt(); }
-void setSimilarBits(int v) { store().setValue(QStringLiteral("similar/bits"), v); }
+int similarBits() { return readInt(QStringLiteral("similar/bits"), kSimilarBits); }
+void setSimilarBits(int v) { writeInt(QStringLiteral("similar/bits"), kSimilarBits, v); }
 
 } // namespace picsel::settings

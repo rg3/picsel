@@ -40,6 +40,13 @@ class Session : public QObject {
 
     Q_PROPERTY(int sessionId READ sessionId CONSTANT)
     Q_PROPERTY(int fullPreloadPages READ fullPreloadPages CONSTANT)
+    // Setting ranges (settings::IntSetting), for the controls that change them.
+    Q_PROPERTY(int columnsMin READ columnsMin CONSTANT)
+    Q_PROPERTY(int columnsMax READ columnsMax CONSTANT)
+    Q_PROPERTY(int similarSecondsMin READ similarSecondsMin CONSTANT)
+    Q_PROPERTY(int similarSecondsMax READ similarSecondsMax CONSTANT)
+    Q_PROPERTY(int similarBitsMin READ similarBitsMin CONSTANT)
+    Q_PROPERTY(int similarBitsMax READ similarBitsMax CONSTANT)
     Q_PROPERTY(QString sourceDir READ sourceDir CONSTANT)
     Q_PROPERTY(QString targetDir READ targetDir NOTIFY targetDirChanged)
     Q_PROPERTY(bool defaultSelected READ defaultSelected WRITE setDefaultSelected NOTIFY defaultSelectedChanged)
@@ -67,6 +74,12 @@ public:
 
     int sessionId() const { return m_id; }
     int fullPreloadPages() const { return kFullPreloadPages; }
+    int columnsMin() const { return settings::kColumns.min; }
+    int columnsMax() const { return settings::kColumns.max; }
+    int similarSecondsMin() const { return settings::kSimilarSeconds.min; }
+    int similarSecondsMax() const { return settings::kSimilarSeconds.max; }
+    int similarBitsMin() const { return settings::kSimilarBits.min; }
+    int similarBitsMax() const { return settings::kSimilarBits.max; }
     QString sourceDir() const { return m_dir; }
     QString targetDir() const { return m_targetDir; }
     bool defaultSelected() const { return m_defaultSelected; }
@@ -185,7 +198,7 @@ private:
     QString m_targetDir;
     bool m_defaultSelected = false;
     SortMode m_sortMode = SortMode::Date;
-    int m_columns = 4;
+    int m_columns = settings::kColumns.fallback;
     int m_selectedCount = 0;
     quint32 m_nextUid = 1;
     QString m_error;
@@ -211,8 +224,8 @@ private:
     QHash<QString, quint64> m_hashes;
     QTimer m_groupTimer;
     bool m_showSimilar = true;
-    int m_similarSeconds = 10;
-    int m_similarBits = 10;
+    int m_similarSeconds = settings::kSimilarSeconds.fallback;
+    int m_similarBits = settings::kSimilarBits.fallback;
     int m_groupCount = 0;
     QStringList m_pendingRemovals;   // moved files to drop from DB + model
     QTimer m_removalTimer;

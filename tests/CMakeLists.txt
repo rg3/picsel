@@ -12,6 +12,7 @@ endfunction()
 
 picsel_add_test(tst_jpegdecoder)
 picsel_add_test(tst_sorting)
+picsel_add_test(tst_settings)
 picsel_add_test(tst_mover)
 picsel_add_test(tst_selectiondb)
 picsel_add_test(tst_scanner_reconcile)

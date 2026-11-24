@@ -254,7 +254,7 @@ Rectangle {
                     Slider {
                         Layout.fillWidth: true
                         focusPolicy: Qt.NoFocus
-                        from: 1; to: 60; stepSize: 1
+                        from: root.session.similarSecondsMin; to: root.session.similarSecondsMax; stepSize: 1
                         value: root.session.similarSeconds
                         onMoved: root.session.similarSeconds = value
                         onPressedChanged: if (!pressed) root.activated()
@@ -269,7 +269,7 @@ Rectangle {
                         Layout.fillWidth: true
                         focusPolicy: Qt.NoFocus
                         // Left = strict (few differing bits), right = loose.
-                        from: 2; to: 24; stepSize: 1
+                        from: root.session.similarBitsMin; to: root.session.similarBitsMax; stepSize: 1
                         value: root.session.similarBits
                         onMoved: root.session.similarBits = value
                         onPressedChanged: if (!pressed) root.activated()

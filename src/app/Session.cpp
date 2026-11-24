@@ -354,7 +354,7 @@ void Session::setSortMode(const QString &mode) {
 }
 
 void Session::setColumns(int n) {
-    n = std::clamp(n, 2, 6);
+    n = settings::kColumns.clamp(n);
     if (n == m_columns)
         return;
     m_columns = n;
@@ -824,7 +824,7 @@ void Session::setShowSimilar(bool on) {
 }
 
 void Session::setSimilarSeconds(int s) {
-    s = std::clamp(s, 0, 3600);
+    s = settings::kSimilarSeconds.clamp(s);
     if (s == m_similarSeconds)
         return;
     m_similarSeconds = s;
@@ -834,7 +834,7 @@ void Session::setSimilarSeconds(int s) {
 }
 
 void Session::setSimilarBits(int b) {
-    b = std::clamp(b, 0, 32);
+    b = settings::kSimilarBits.clamp(b);
     if (b == m_similarBits)
         return;
     m_similarBits = b;
