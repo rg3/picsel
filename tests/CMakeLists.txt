@@ -33,3 +33,8 @@ if(APPSTREAMCLI)
   add_test(NAME metainfo COMMAND ${APPSTREAMCLI} validate --no-net
            ${PROJECT_SOURCE_DIR}/data/${PICSEL_APP_ID}.metainfo.xml)
 endif()
+find_program(UPDATE_MIME_DATABASE update-mime-database)
+if(UPDATE_MIME_DATABASE)
+  add_test(NAME mime_glob COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/mime_glob.sh
+           ${UPDATE_MIME_DATABASE} ${PROJECT_SOURCE_DIR}/data/${PICSEL_APP_ID}.mime.xml)
+endif()

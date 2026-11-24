@@ -13,7 +13,8 @@ when you are done.
 ## Using it
 
 - Opening a picture opens its whole folder, with that picture highlighted.
-  Running `picsel` with no arguments asks for a folder; `picsel DIR` works too.
+  Opening a folder's `picsel.db` opens that folder. Running `picsel` with no
+  arguments asks for a folder; `picsel DIR` works too.
 - The first time, picsel asks for the destination folder and whether pictures
   start as selected or not selected. It then keeps `picsel.db` in the folder.
   Every change is saved immediately, so you can close picsel (or it can crash)
@@ -74,6 +75,7 @@ separately):
 | H.264 decoder in that ffmpeg; H.265/HEVC for newer phones; AAC for sound | the respective videos |
 | Qt SVG (icon engine or image plugin) | the window icon |
 | xdg-desktop-portal with a FileChooser backend (e.g. the KDE or GTK one) | the desktop's own folder dialogs; without it Qt draws a plainer one |
+| shared-mime-info | opening a folder by its `picsel.db` from the file manager |
 
 `picsel --check` reports which of these are present and exits with status 1
 if picsel cannot start. Run it when something looks wrong, or from a package
@@ -107,14 +109,18 @@ Build options:
 
 - `-DBUILD_TESTING=OFF` skips the unit tests and the Qt Test dependency.
   Optional test tools: the `ffmpeg` CLI (video tests are skipped without
-  it), `desktop-file-validate` and `appstreamcli` (validate the desktop file
-  and AppStream metainfo).
+  it), `desktop-file-validate`, `appstreamcli` and `update-mime-database`
+  (validate the desktop file, AppStream metainfo and MIME file).
 - `-DPICSEL_BUILD_TOOLS=ON` also builds the developer tool `bench_decode`.
 
 The install puts `picsel` in `bin/`, plus its desktop file, icon, AppStream
-metainfo (all named `io.github.rg3.picsel`) and the `picsel.1` man page.
+metainfo, a shared-mime-info file (all named `io.github.rg3.picsel`) and the
+`picsel.1` man page. The MIME file gives files named exactly `picsel.db` their
+own type, `application/x-picsel-db`, so file managers open them with picsel
+while other `.db` files keep the usual SQLite type.
 
 For a per-user install use `-DCMAKE_INSTALL_PREFIX=$HOME/.local`, then run
+`update-mime-database ~/.local/share/mime` and
 `update-desktop-database ~/.local/share/applications` so "Open with" lists
 picsel (packages do this through their own triggers).
 

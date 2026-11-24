@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: CC0-1.0 -->
+<!-- picsel's per-folder state file. The glob is the whole file name, which
+     shared-mime-info prefers over the *.db extension, so other SQLite files
+     keep their usual type. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-picsel-db">
+    <comment>picsel folder state</comment>
+    <sub-class-of type="application/vnd.sqlite3"/>
+    <glob pattern="picsel.db" case-sensitive="true"/>
+  </mime-type>
+</mime-info>

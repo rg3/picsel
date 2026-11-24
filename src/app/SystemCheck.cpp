@@ -6,6 +6,7 @@
 #include <QDBusVariant>
 #include <QIcon>
 #include <QMediaFormat>
+#include <QMimeDatabase>
 #include <QPixmap>
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -71,6 +72,9 @@ int runSystemCheck() {
     report("SVG icons (Qt SVG)", !icon.pixmap(64).isNull(), "missing (no window icon)");
     report("desktop folder dialogs (portal)", portalFolderDialogs(),
            "missing (Qt's own dialog is used; needs xdg-desktop-portal)");
+    // Only installed systems have it: the type comes from picsel's own MIME file.
+    report("picsel.db file type", QMimeDatabase().mimeTypeForName(QStringLiteral("application/x-picsel-db")).isValid(),
+           "missing (picsel.db files do not open with picsel)");
 
     std::printf(fatal ? "picsel cannot start: install the missing QML modules.\n" : "picsel can run.\n");
     return fatal ? 1 : 0;

@@ -9,5 +9,5 @@ Terminal=false
 StartupNotify=true
 SingleMainWindow=true
 Categories=Graphics;Photography;Viewer;Qt;
-MimeType=image/jpeg;video/mp4;video/quicktime;video/x-m4v;
+MimeType=image/jpeg;video/mp4;video/quicktime;video/x-m4v;application/x-picsel-db;
 Keywords=photo;picture;select;cull;gallery;

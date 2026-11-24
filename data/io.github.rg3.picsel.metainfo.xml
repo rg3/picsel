@@ -44,6 +44,7 @@
   <launchable type="desktop-id">io.github.rg3.picsel.desktop</launchable>
   <provides>
     <binary>picsel</binary>
+    <mediatype>application/x-picsel-db</mediatype>
   </provides>
 
   <url type="homepage">https://github.com/rg3/picsel</url>

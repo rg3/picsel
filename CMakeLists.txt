@@ -43,4 +43,7 @@ include(GNUInstallDirs)
 install(FILES data/${PICSEL_APP_ID}.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES data/${PICSEL_APP_ID}.svg DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
 install(FILES data/${PICSEL_APP_ID}.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+# Installed under the app id, as shared-mime-info recommends for package files.
+install(FILES data/${PICSEL_APP_ID}.mime.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/mime/packages
+        RENAME ${PICSEL_APP_ID}.xml)
 install(FILES data/picsel.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
