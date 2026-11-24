@@ -108,12 +108,7 @@ QImage ImageCache::waitFor(const QString &name, int timeoutMs) {
     QDeadlineTimer deadline(timeoutMs);
     m_boost = name;
     pumpLocked();
-    while (!m_stopping) {
-        auto it = m_entries.constFind(name);
-        if (it == m_entries.constEnd())
-            break;
-        if (it->failed || !it->decodable || (!it->img.isNull() && closeEnough(it->decodedFor, m_box)))
-            break;
+    while (!m_stopping && !settledLocked(name)) {
         if (!m_cond.wait(&m_mutex, deadline))
             break;
     }
@@ -121,6 +116,33 @@ QImage ImageCache::waitFor(const QString &name, int timeoutMs) {
         m_boost.clear();
     auto it = m_entries.constFind(name);
     return it == m_entries.constEnd() ? QImage() : it->img;
+}
+
+std::optional<QImage> ImageCache::settledImage(const QString &name) {
+    QMutexLocker lock(&m_mutex);
+    if (m_stopping || settledLocked(name)) {
+        if (m_boost == name)
+            m_boost.clear();
+        auto it = m_entries.constFind(name);
+        return it == m_entries.constEnd() ? QImage() : it->img;
+    }
+    if (m_boost != name) {
+        m_boost = name;
+        pumpLocked();
+    }
+    return std::nullopt;
+}
+
+void ImageCache::unboost(const QString &name) {
+    QMutexLocker lock(&m_mutex);
+    if (m_boost == name)
+        m_boost.clear();
+}
+
+bool ImageCache::settledLocked(const QString &name) const {
+    auto it = m_entries.constFind(name);
+    return it == m_entries.constEnd() || it->failed || !it->decodable
+        || (!it->img.isNull() && closeEnough(it->decodedFor, m_box));
 }
 
 void ImageCache::invalidate(const QString &name) {

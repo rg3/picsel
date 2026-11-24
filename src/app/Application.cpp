@@ -31,10 +31,8 @@ QString serverName() {
 
 Application::Application(QObject *parent) : QObject(parent) {
     s_instance = this;
-    m_engine.addImageProvider(QStringLiteral("thumb"),
-                              new CacheImageProvider(CacheImageProvider::Kind::Thumb));
-    m_engine.addImageProvider(QStringLiteral("full"),
-                              new CacheImageProvider(CacheImageProvider::Kind::Full));
+    m_engine.addImageProvider(QStringLiteral("thumb"), new ThumbImageProvider);
+    m_engine.addImageProvider(QStringLiteral("full"), new FullImageProvider);
     connect(&m_server, &QLocalServer::newConnection, this, &Application::onNewConnection);
     QGuiApplication::setQuitOnLastWindowClosed(false);
 }

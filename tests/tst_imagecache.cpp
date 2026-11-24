@@ -63,6 +63,32 @@ private slots:
         QVERIFY(qBlue(cache.image(name).pixel(5, 5)) > 200);
     }
 
+    void settledImageBoostsWithoutBlocking() {
+        QTemporaryDir dir;
+        writeJpeg(dir.filePath("a.jpg"), Qt::red);
+        writeJpeg(dir.filePath("b.jpg"), Qt::green);
+        ImageCache::Params p;
+        p.maxDistance = 0; // only the focus is decoded unless boosted
+        ImageCache cache(p);
+        QSignalSpy ready(&cache, &ImageCache::ready);
+        cache.setDirectory(dir.path());
+        cache.setFiles({"a.jpg", "b.jpg"}, {true, true});
+        cache.setFocus(0, 0);
+        cache.setTargetSize(QSize(64, 64));
+        QTRY_COMPARE(ready.size(), 1);
+        QTest::qWait(100);
+        QCOMPARE(ready.size(), 1); // b.jpg is out of range
+
+        QVERIFY(!cache.settledImage("b.jpg")); // not decoded yet: boosted instead
+        QTRY_COMPARE(ready.size(), 2);
+        QCOMPARE(ready.at(1).at(0).toString(), QStringLiteral("b.jpg"));
+        const std::optional<QImage> b = cache.settledImage("b.jpg");
+        QVERIFY(b && qGreen(b->pixel(5, 5)) > 100);
+
+        const std::optional<QImage> gone = cache.settledImage("missing.jpg");
+        QVERIFY(gone && gone->isNull()); // nothing will ever come: settled
+    }
+
     void clearRedecodesEverything() {
         QTemporaryDir dir;
         writeJpeg(dir.filePath("a.jpg"), Qt::green);

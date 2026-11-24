@@ -18,6 +18,8 @@
 #include <QThreadPool>
 #include <QWaitCondition>
 
+#include <optional>
+
 namespace picsel {
 
 class ImageCache : public QObject {
@@ -54,6 +56,12 @@ public:
     // Blocks until the image for |name| at the current target size is ready
     // (or failed / timed out), boosting it to the front of the queue.
     QImage waitFor(const QString &name, int timeoutMs);
+    // Non-blocking waitFor(): the image once it is settled (decoded at the
+    // current size, failed, not decodable or gone), else boosts |name| and
+    // returns nothing. Recheck on ready() or failed().
+    std::optional<QImage> settledImage(const QString &name);
+    // Drops the boost of |name| once nobody waits for it any more.
+    void unboost(const QString &name);
 
     void invalidate(const QString &name);
     // Forgets |name| (file deleted, or replaced by another file of that name)
@@ -87,6 +95,7 @@ private:
     QString pickNextLocked();
     void runJob(const QString &name, QSize box, quint64 epoch, quint32 gen);
     void resetEntryLocked(Entry &e);
+    bool settledLocked(const QString &name) const;
     static qint64 bytesOf(const QImage &img) { return img.sizeInBytes(); }
 
     Params m_params;

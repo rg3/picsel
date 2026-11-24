@@ -75,10 +75,19 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   - Per-entry generations drop stale in-flight results after `remove()` or
     `clear()` (a file replaced under the same name). A removed entry is
     skipped until the next `setFiles()` lists it again.
-- **QML access:** QML gets images through `CacheImageProvider`
-  (`image://thumb|full/<session>/<uid>/<version>`). Providers run on QML
-  loader threads and only touch the thread-safe cache plus a mutex-guarded
-  uid→name map. File names never appear in URLs.
+- **QML access:** QML gets images through `ThumbImageProvider` and
+  `FullImageProvider` (`image://thumb|full/<session>/<uid>/<version>`). Both
+  run on the engine's single pixmap reader thread and only touch the
+  thread-safe cache plus a mutex-guarded uid→name map. File names never
+  appear in URLs.
+  - Trap: anything that blocks in a synchronous provider holds up every
+    image load in every window. The full provider is therefore a
+    `QQuickAsyncImageProvider`: its response finishes on the cache's
+    `ready`/`failed` signals (queued to the reader thread) or a 10 s
+    timeout, and must still emit `finished()` when cancelled. Measured with
+    a simulated 600 ms read per picture, a blocking full provider kept the
+    cached thumbnails of pages flipped past from showing at all. Thumbnails
+    stay synchronous: they only wait for one evicted from a huge folder.
 - **Metadata:** exiv2 for photos and a hand-written ISO-BMFF `mvhd`/`tkhd`
   parser for MP4/MOV (`core/Mp4Info`) run on a 4-thread pool after a folder
   opens. Videos get a pseudo-camera such as "Videos (MP4)", so their clock
