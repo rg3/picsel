@@ -30,15 +30,15 @@
   <screenshots>
     <screenshot type="default">
       <caption>Mark the pictures to keep; bursts of similar shots are grouped</caption>
-      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/rg3/picsel/v0.1.0/data/screenshots/mosaic.png</image>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/rg3/picsel/v0.2.0/data/screenshots/mosaic.png</image>
     </screenshot>
     <screenshot>
       <caption>Full view of a picture</caption>
-      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/rg3/picsel/v0.1.0/data/screenshots/fullview.png</image>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/rg3/picsel/v0.2.0/data/screenshots/fullview.png</image>
     </screenshot>
     <screenshot>
       <caption>Move the selected pictures to the gallery folder</caption>
-      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/rg3/picsel/v0.1.0/data/screenshots/move.png</image>
+      <image type="source" width="1600" height="1000">https://raw.githubusercontent.com/rg3/picsel/v0.2.0/data/screenshots/move.png</image>
     </screenshot>
   </screenshots>
 
@@ -60,6 +60,19 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="0.2.0" date="2026-11-24">
+      <description>
+        <ul>
+          <li>Folders reopen at the picture you were on when you closed them</li>
+          <li>picsel.db files open with picsel</li>
+          <li>Folders are sorted by date taken unless you chose name order</li>
+          <li>The selection is never reset when a folder can only be listed in part</li>
+          <li>Overwriting a hard link of the moved file no longer leaves the file behind</li>
+          <li>The full view no longer holds up thumbnails while a large picture loads</li>
+          <li>The mosaic's scrollbar no longer covers the thumbnails</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-11-22">
       <description>
         <p>First release.</p>
