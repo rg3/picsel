@@ -16,13 +16,15 @@ set(picsel_qt_components Core Gui DBus Qml Quick QuickControls2 Concurrent Multi
 if(BUILD_TESTING)
   list(APPEND picsel_qt_components Test)
 endif()
-find_package(Qt6 6.8 REQUIRED COMPONENTS ${picsel_qt_components})
+# Oldest Qt picsel builds with (also stated in the README).
+set(PICSEL_QT_MIN 6.8)
+find_package(Qt6 ${PICSEL_QT_MIN} REQUIRED COMPONENTS ${picsel_qt_components})
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(JPEG REQUIRED IMPORTED_TARGET libjpeg)
 pkg_check_modules(EXIV2 REQUIRED IMPORTED_TARGET exiv2)
 pkg_check_modules(SQLITE3 REQUIRED IMPORTED_TARGET sqlite3)
 
-qt_standard_project_setup(REQUIRES 6.8)
+qt_standard_project_setup(REQUIRES ${PICSEL_QT_MIN})
 # picsel installs no shared libraries, so drop the $ORIGIN install RPATH Qt
 # adds (distro package checks reject it); keep any the packager passes.
 list(FILTER CMAKE_INSTALL_RPATH EXCLUDE REGEX "^\\$ORIGIN")

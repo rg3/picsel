@@ -47,7 +47,8 @@ struct stat statOf(const QString &dir, const QString &name) {
 }
 
 QStringList tempLeftovers(const QString &dir) {
-    return QDir(dir).entryList({QStringLiteral(".picsel-tmp-*")}, QDir::AllEntries | QDir::Hidden | QDir::System);
+    return QDir(dir).entryList({QLatin1String(kMoveTempPrefix) + QLatin1Char('*')},
+                               QDir::AllEntries | QDir::Hidden | QDir::System);
 }
 
 // Source and destination folders inside one temp dir (same filesystem).
