@@ -9,6 +9,7 @@
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
+#include <QUrl>
 #include <QtQmlIntegration>
 
 namespace picsel {
@@ -44,8 +45,14 @@ public:
     Q_INVOKABLE void setupAccepted(const QString &sourceDir, const QString &targetDir,
                                    bool defaultSelected, const QString &highlight);
     Q_INVOKABLE void setupCancelled();
+    // Absolute paths only: a relative one would resolve against picsel's
+    // working directory, which the user can't see.
     Q_INVOKABLE bool isWritableDir(const QString &pathOrUrl) const;
+    Q_INVOKABLE bool isAbsolutePath(const QString &pathOrUrl) const;
+    Q_INVOKABLE bool isSameDir(const QString &a, const QString &b) const;
     Q_INVOKABLE QString toLocalPath(const QString &pathOrUrl) const;
+    // A file:// URL for FolderDialog.currentFolder; string joining breaks on '#', '?' or '%'.
+    Q_INVOKABLE QUrl fileUrl(const QString &path) const { return QUrl::fromLocalFile(path); }
 
 private:
     struct Open {

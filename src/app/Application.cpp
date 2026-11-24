@@ -106,9 +106,18 @@ QString Application::toLocalPath(const QString &pathOrUrl) const {
     return url.isLocalFile() ? url.toLocalFile() : pathOrUrl;
 }
 
+bool Application::isAbsolutePath(const QString &pathOrUrl) const {
+    return QDir::isAbsolutePath(toLocalPath(pathOrUrl));
+}
+
 bool Application::isWritableDir(const QString &pathOrUrl) const {
     const QFileInfo fi(toLocalPath(pathOrUrl));
-    return fi.isDir() && fi.isWritable();
+    return fi.isAbsolute() && fi.isDir() && fi.isWritable();
+}
+
+bool Application::isSameDir(const QString &a, const QString &b) const {
+    const QString ca = QFileInfo(toLocalPath(a)).canonicalFilePath();
+    return !ca.isEmpty() && ca == QFileInfo(toLocalPath(b)).canonicalFilePath();
 }
 
 void Application::openPath(const QString &path, const QByteArray &token) {

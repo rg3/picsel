@@ -87,7 +87,7 @@ Rectangle {
     FolderDialog {
         id: targetPicker
         title: qsTr("Folder for the selected pictures")
-        currentFolder: "file://" + root.session.targetDir
+        currentFolder: App.fileUrl(root.session.targetDir)
         onAccepted: { root.session.setTargetDir(selectedFolder.toString()); root.activated() }
         onRejected: root.activated()
     }

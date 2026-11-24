@@ -201,11 +201,18 @@ FocusScope {
         height: 76
         color: "#cc1c1c1f"
 
+        // Bumped when the shown item's details change (a late date, a clock correction).
+        property int infoRevision: 0
         readonly property var info: root.session.model.count > 0 ? itemInfo() : ({})
         function itemInfo() {
-            // Re-evaluated on every count/selection change.
+            // Re-evaluated on every count/selection/details change.
             root.session.selectedCount
+            bar.infoRevision
             return root.session.info(pages.currentIndex)
+        }
+        Connections {
+            target: root.session
+            function onItemInfoChanged(row) { if (row === pages.currentIndex) bar.infoRevision++ }
         }
 
         RowLayout {

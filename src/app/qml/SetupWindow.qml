@@ -17,7 +17,7 @@ ApplicationWindow {
     property bool done: false
 
     readonly property bool targetValid: targetDir !== "" && App.isWritableDir(targetDir)
-                                        && targetDir !== sourceDir
+                                        && !App.isSameDir(targetDir, sourceDir)
 
     width: 640
     height: layout.implicitHeight + 48
@@ -40,7 +40,8 @@ ApplicationWindow {
     FolderDialog {
         id: picker
         title: qsTr("Folder for the selected pictures")
-        currentFolder: "file://" + (root.targetDir !== "" ? root.targetDir : root.sourceDir)
+        currentFolder: App.fileUrl(root.targetDir !== "" && App.isAbsolutePath(root.targetDir)
+                                   ? root.targetDir : root.sourceDir)
         onAccepted: root.targetDir = App.toLocalPath(selectedFolder.toString())
     }
 
@@ -93,7 +94,8 @@ ApplicationWindow {
         Label {
             visible: !root.targetValid
             text: root.targetDir === "" ? qsTr("Choose where selected pictures will go.")
-                  : root.targetDir === root.sourceDir ? qsTr("The destination must differ from the source folder.")
+                  : !App.isAbsolutePath(root.targetDir) ? qsTr("Enter a full path, starting with /.")
+                  : App.isSameDir(root.targetDir, root.sourceDir) ? qsTr("The destination must differ from the source folder.")
                   : qsTr("That folder doesn't exist or isn't writable.")
             color: Theme.danger
             font.pixelSize: Theme.fontSmall

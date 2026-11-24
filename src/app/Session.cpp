@@ -251,6 +251,10 @@ void Session::onMetadataRead(const QString &name, qint64 size, qint64 mtimeNs, c
             it->sortTimeMs = t;
             if (m_sortMode == SortMode::Date)
                 m_resortTimer.start();
+            // Groups also check times; don't restart a running timer, so a
+            // stream of results can't keep postponing it.
+            if (!m_groupTimer.isActive())
+                m_groupTimer.start();
         }
     }
     emit itemInfoChanged(row);
@@ -546,6 +550,7 @@ void Session::reloadCameraOffsets() {
     }
     if (m_sortMode == SortMode::Date)
         resortAll();
+    m_groupTimer.start(); // groups check the corrected times
     emit itemInfoChanged(m_model.rowOf(m_currentName));
 }
 
@@ -715,9 +720,13 @@ void Session::onFileRenamed(const QString &from, const DiskFile &to) {
     }
     if (from != to.name && m_model.rowOf(to.name) >= 0)
         removeItem(to.name); // renamed over an existing picture
-    if (!m_db.renameFile(from, to.name) || !m_db.updateStat(to.name, to.size, to.mtimeNs, to.inode)) {
-        emit errorOccurred(tr("Could not record the rename of %1: %2").arg(from, m_db.lastError()));
-        return;
+    {
+        SelectionDb::Transaction tx(m_db);
+        if (!m_db.renameFile(from, to.name) || !m_db.updateStat(to.name, to.size, to.mtimeNs, to.inode)
+            || !tx.commit()) {
+            emit errorOccurred(tr("Could not record the rename of %1: %2").arg(from, m_db.lastError()));
+            return;
+        }
     }
     const int row = m_model.rowOf(from);
     m_model.setName(row, to.name);
@@ -731,6 +740,8 @@ void Session::onFileRenamed(const QString &from, const DiskFile &to) {
         m_details.insert(to.name, m_details.take(from));
     if (m_hashes.contains(from))
         m_hashes.insert(to.name, m_hashes.take(from));
+    if (m_pendingMeta.contains(from))
+        m_pendingMeta.insert(to.name, m_pendingMeta.take(from)); // its old row is gone
     if (m_currentName == from)
         m_currentName = to.name;
     const int newRow = m_model.resort(row, m_sortMode);
