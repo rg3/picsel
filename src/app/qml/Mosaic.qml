@@ -110,7 +110,7 @@ FocusScope {
 
     GridView {
         id: grid
-        anchors.fill: parent
+        anchors { left: parent.left; top: parent.top; bottom: parent.bottom; right: vbar.left }
         focus: true
         clip: true
         model: root.session.model
@@ -127,7 +127,7 @@ FocusScope {
         reuseItems: true
         currentIndex: 0
 
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        ScrollBar.vertical: vbar
 
         delegate: Tile {
             width: grid.cellWidth
@@ -153,6 +153,15 @@ FocusScope {
             duration: Theme.animMs + 40
             easing.type: Easing.OutCubic
         }
+    }
+
+    // Outside the grid so it never covers the tiles, and always taking its
+    // width so the columns don't reflow when it appears. Fusion's AsNeeded
+    // only shows it while scrolling, so it's shown whenever there's more to see.
+    ScrollBar {
+        id: vbar
+        anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+        policy: size < 1.0 ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
     }
 
     Timer { id: visibleTimer; interval: 16; onTriggered: root.reportVisible() }
