@@ -89,6 +89,27 @@ private slots:
         QVERIFY(gone && gone->isNull()); // nothing will ever come: settled
     }
 
+    void settledImageKeepsFocusFirst() {
+        // A neighbour asking first must not overtake the current picture.
+        QTemporaryDir dir;
+        const QStringList names{"a.jpg", "b.jpg", "c.jpg"};
+        for (const QString &n : names)
+            writeJpeg(dir.filePath(n), Qt::blue);
+        ImageCache::Params p;
+        p.threads = 1; // decode order is the pick order
+        p.maxDistance = 3;
+        ImageCache cache(p);
+        QSignalSpy ready(&cache, &ImageCache::ready);
+        cache.setDirectory(dir.path());
+        cache.setFiles(names, {true, true, true});
+        cache.setFocus(0, 0);
+        QVERIFY(!cache.settledImage("c.jpg")); // no target size yet: nothing runs
+        cache.setTargetSize(QSize(64, 64));
+        QTRY_COMPARE(ready.size(), 3);
+        QCOMPARE(ready.at(0).at(0).toString(), QStringLiteral("a.jpg"));
+        QCOMPARE(ready.at(2).at(0).toString(), QStringLiteral("c.jpg"));
+    }
+
     void clearRedecodesEverything() {
         QTemporaryDir dir;
         writeJpeg(dir.filePath("a.jpg"), Qt::green);

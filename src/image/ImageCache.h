@@ -57,8 +57,9 @@ public:
     // (or failed / timed out), boosting it to the front of the queue.
     QImage waitFor(const QString &name, int timeoutMs);
     // Non-blocking waitFor(): the image once it is settled (decoded at the
-    // current size, failed, not decodable or gone), else boosts |name| and
-    // returns nothing. Recheck on ready() or failed().
+    // current size, failed, not decodable or gone), else returns nothing and
+    // boosts |name| if the focus alone wouldn't get it decoded. Recheck on
+    // ready() or failed().
     std::optional<QImage> settledImage(const QString &name);
     // Drops the boost of |name| once nobody waits for it any more.
     void unboost(const QString &name);

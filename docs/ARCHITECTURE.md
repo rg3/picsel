@@ -88,6 +88,9 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
     a simulated 600 ms read per picture, a blocking full provider kept the
     cached thumbnails of pages flipped past from showing at all. Thumbnails
     stay synchronous: they only wait for one evicted from a huge folder.
+  - Several full-size requests wait at once (the view keeps neighbours
+    loaded), so they don't boost entries the focus already reaches: the
+    current picture stays first.
 - **Metadata:** exiv2 for photos and a hand-written ISO-BMFF `mvhd`/`tkhd`
   parser for MP4/MOV (`core/Mp4Info`) run on a 4-thread pool after a folder
   opens. Videos get a pseudo-camera such as "Videos (MP4)", so their clock

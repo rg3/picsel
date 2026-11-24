@@ -126,7 +126,13 @@ std::optional<QImage> ImageCache::settledImage(const QString &name) {
         auto it = m_entries.constFind(name);
         return it == m_entries.constEnd() ? QImage() : it->img;
     }
-    if (m_boost != name) {
+    // Several requests wait at once (the full view keeps neighbours loaded),
+    // and there is one boost: only use it for an entry the focus won't reach,
+    // so the current picture stays first.
+    const int index = m_index.value(name, -1);
+    const bool reachable = !m_paused && index >= 0
+        && (m_params.maxDistance < 0 || distance(index) <= m_params.maxDistance);
+    if (!reachable && m_boost != name) {
         m_boost = name;
         pumpLocked();
     }
