@@ -36,6 +36,16 @@ private slots:
         QCOMPARE(sortModeFromString("name"), SortMode::Name);
     }
 
+    void sortModeParsingIsStrict() {
+        QCOMPARE(parseSortMode("name"), std::optional(SortMode::Name));
+        QCOMPARE(parseSortMode("date"), std::optional(SortMode::Date));
+        QVERIFY(!parseSortMode("Date"));
+        QVERIFY(!parseSortMode(QString()));
+        // Every mode survives a round trip through its string.
+        for (SortMode m : {SortMode::Name, SortMode::Date})
+            QCOMPARE(parseSortMode(sortModeToString(m)), std::optional(m));
+    }
+
     void correctedTime() {
         CameraOffsets off{{"NIKON Z 6", 90}};
         const qint64 t0 = correctedTimeMs("2026-11-21T18:00:00", "Google Pixel 9", off);

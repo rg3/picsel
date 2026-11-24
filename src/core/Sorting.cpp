@@ -6,9 +6,17 @@
 
 namespace picsel {
 
+std::optional<SortMode> parseSortMode(const QString &s) {
+    if (s == QLatin1String("name"))
+        return SortMode::Name;
+    if (s == QLatin1String("date"))
+        return SortMode::Date;
+    return std::nullopt;
+}
+
 SortMode sortModeFromString(const QString &s) {
     // Date is the default, also for folders that never chose a mode.
-    return s == QLatin1String("name") ? SortMode::Name : SortMode::Date;
+    return parseSortMode(s).value_or(SortMode::Date);
 }
 
 QString sortModeToString(SortMode m) {

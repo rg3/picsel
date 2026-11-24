@@ -343,7 +343,12 @@ void Session::setDefaultSelected(bool v) {
 }
 
 void Session::setSortMode(const QString &mode) {
-    const SortMode m = sortModeFromString(mode);
+    const std::optional<SortMode> parsed = parseSortMode(mode);
+    if (!parsed) {
+        qWarning().noquote() << "picsel: unknown sort mode" << mode; // a caller's typo
+        return;
+    }
+    const SortMode m = *parsed;
     if (m == m_sortMode)
         return;
     m_sortMode = m;

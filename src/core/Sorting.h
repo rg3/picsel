@@ -6,11 +6,16 @@
 #include <QString>
 #include <QVector>
 #include <limits>
+#include <optional>
 
 namespace picsel {
 
 enum class SortMode { Name = 0, Date = 1 };
 
+// "name" or "date": what picsel.db stores and QML sets. Unknown strings give
+// nothing, so a typo in a caller is reported instead of silently sorting by date.
+std::optional<SortMode> parseSortMode(const QString &s);
+// For stored values: anything unknown (or never set) means date order.
 SortMode sortModeFromString(const QString &s);
 QString sortModeToString(SortMode m);
 
