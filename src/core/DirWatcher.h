@@ -23,6 +23,13 @@ namespace picsel {
 class DirWatcher : public QObject {
     Q_OBJECT
 public:
+    // A new file is reported once nothing modified it for this long, even
+    // without IN_CLOSE_WRITE (hard links, writers keeping the file open).
+    // Public so the tests can derive their waits from it.
+    static constexpr int kSettleMs = 1000;
+    // How long an IN_MOVED_FROM waits for its IN_MOVED_TO in a later read.
+    static constexpr int kMoveGraceMs = 80;
+
     explicit DirWatcher(QObject *parent = nullptr);
     ~DirWatcher() override;
 

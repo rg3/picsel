@@ -17,7 +17,15 @@ namespace {
 
 // Longer than the watcher's settle time (1 s) so pending files would have
 // been reported by then.
-constexpr int kQuietMs = 1300;
+// Waits derived from the watcher's timers, so the tests keep meaning the same
+// thing if those change.
+// Long enough for any pending settle timer to have fired.
+constexpr int kQuietMs = DirWatcher::kSettleMs + 300;
+// Long enough for an unmatched move to have been reported.
+constexpr int kAfterEventMs = DirWatcher::kMoveGraceMs + 120;
+// Well inside the settle time: nothing may be reported yet.
+constexpr int kBeforeSettleMs = DirWatcher::kSettleMs * 2 / 5;
+static_assert(kBeforeSettleMs >= 100, "too short to tell \"not yet\" from \"never\"");
 
 bool writeFile(const QString &path, const QByteArray &data) {
     QFile f(path);
@@ -90,7 +98,7 @@ private slots:
         QVERIFY(f.open(QIODevice::WriteOnly));
         QVERIFY(f.write("hello") == 5);
         QVERIFY(f.flush());
-        QTest::qWait(300);
+        QTest::qWait(kBeforeSettleMs);
         QCOMPARE(m_spies->total(), 0); // not before close
         f.close();
         QTRY_COMPARE_WITH_TIMEOUT(m_spies->added.count(), 1, 1000);
@@ -105,16 +113,20 @@ private slots:
         QVERIFY(startWatching());
         QFile f(path("slow.mp4"));
         QVERIFY(f.open(QIODevice::WriteOnly));
-        for (int i = 0; i < 6; ++i) { // 1.8 s in total, longer than the settle time
+        // Each write comes before the settle time runs out; all of them take longer.
+        constexpr int kGapMs = 300;
+        static_assert(kGapMs < DirWatcher::kSettleMs);
+        constexpr int kSteps = DirWatcher::kSettleMs / kGapMs + 3;
+        for (int i = 0; i < kSteps; ++i) {
             QVERIFY(f.write(QByteArray(1000, 'x')) == 1000);
             QVERIFY(f.flush());
-            QTest::qWait(300);
+            QTest::qWait(kGapMs);
             QCOMPARE(m_spies->total(), 0);
         }
         f.close();
         QTRY_COMPARE_WITH_TIMEOUT(m_spies->added.count(), 1, 1000);
         QCOMPARE(m_spies->addedFile(0).name, QString("slow.mp4"));
-        QCOMPARE(m_spies->addedFile(0).size, 6000);
+        QCOMPARE(m_spies->addedFile(0).size, kSteps * 1000);
         QTest::qWait(kQuietMs);
         QCOMPARE(m_spies->total(), 1);
     }
@@ -125,12 +137,12 @@ private slots:
         QCOMPARE(::link(QFile::encodeName(outside("src.jpg")).constData(),
                         QFile::encodeName(path("link.jpg")).constData()),
                  0);
-        QTest::qWait(400);
+        QTest::qWait(kBeforeSettleMs);
         QCOMPARE(m_spies->total(), 0); // no CLOSE_WRITE: waits for the settle time
-        QTRY_COMPARE_WITH_TIMEOUT(m_spies->added.count(), 1, 2000);
+        QTRY_COMPARE_WITH_TIMEOUT(m_spies->added.count(), 1, 2 * DirWatcher::kSettleMs);
         QCOMPARE(m_spies->addedFile(0).name, QString("link.jpg"));
         QCOMPARE(m_spies->addedFile(0).size, 6);
-        QTest::qWait(300);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(m_spies->total(), 1);
     }
 
@@ -142,7 +154,7 @@ private slots:
         QCOMPARE(m_spies->renamedFrom(0), QString("a.jpg"));
         QCOMPARE(m_spies->renamedTo(0).name, QString("b.jpg"));
         QCOMPARE(m_spies->renamedTo(0).size, 3);
-        QTest::qWait(200);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(m_spies->total(), 1);
 
         // The new name is known: deleting it is reported.
@@ -162,7 +174,7 @@ private slots:
         QCOMPARE(m_spies->renamedFrom(0), QString("a.jpg"));
         QCOMPARE(m_spies->renamedTo(0).name, QString("b.jpg"));
         QCOMPARE(m_spies->renamedTo(0).size, 3);
-        QTest::qWait(200);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(m_spies->total(), 1);
     }
 
@@ -172,7 +184,7 @@ private slots:
         QVERIFY(QFile::rename(path("a.jpg"), outside("a.jpg")));
         QTRY_COMPARE_WITH_TIMEOUT(m_spies->removed.count(), 1, 1000);
         QCOMPARE(m_spies->removedName(0), QString("a.jpg"));
-        QTest::qWait(200);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(m_spies->total(), 1);
     }
 
@@ -193,7 +205,7 @@ private slots:
         QVERIFY(QFile::remove(path("a.jpg")));
         QTRY_COMPARE_WITH_TIMEOUT(m_spies->removed.count(), 1, 1000);
         QCOMPARE(m_spies->removedName(0), QString("a.jpg"));
-        QTest::qWait(200);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(m_spies->total(), 1);
     }
 
@@ -203,7 +215,7 @@ private slots:
         QCOMPARE(::link(QFile::encodeName(outside("src.jpg")).constData(),
                         QFile::encodeName(path("tmp.jpg")).constData()),
                  0);
-        QTest::qWait(100);
+        QTest::qWait(kBeforeSettleMs / 4); // still pending when it goes
         QVERIFY(QFile::remove(path("tmp.jpg")));
         QTest::qWait(kQuietMs);
         QCOMPARE(m_spies->total(), 0);
@@ -229,7 +241,7 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(m_spies->added.count(), 1, 1000);
         QCOMPARE(m_spies->addedFile(0).name, QString("c.jpg"));
         QCOMPARE(m_spies->addedFile(0).size, 3);
-        QTest::qWait(200);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(m_spies->total(), 2);
     }
 
@@ -244,7 +256,7 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(m_spies->changed.count(), 1, 1000);
         QCOMPARE(m_spies->changedFile(0).name, QString("a.jpg"));
         QCOMPARE(m_spies->changedFile(0).size, 8);
-        QTest::qWait(200);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(m_spies->total(), 1);
     }
 
@@ -274,7 +286,7 @@ private slots:
                  0);
         QTRY_COMPARE_WITH_TIMEOUT(m_spies->removed.count(), 1, 1000);
         QCOMPARE(m_spies->removedName(0), QString("a.jpg"));
-        QTest::qWait(200);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(m_spies->total(), 1);
     }
 
@@ -315,7 +327,7 @@ private slots:
         QVERIFY(w.start(path("watched")));
         QVERIFY(QDir(path("watched")).removeRecursively());
         QTRY_COMPARE_WITH_TIMEOUT(spies.gone.count(), 1, 1000);
-        QTest::qWait(200);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(spies.gone.count(), 1);
         QVERIFY(spies.removed.count() <= 1); // a.jpg may be reported before the directory goes
         QVERIFY(spies.added.isEmpty());
@@ -330,7 +342,7 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(spies.gone.count(), 1, 1000);
         // Stopped: later changes in the moved folder are not reported.
         QVERIFY(writeFile(path("moved/b.jpg"), "b"));
-        QTest::qWait(200);
+        QTest::qWait(kAfterEventMs);
         QCOMPARE(spies.total(), 1);
     }
 

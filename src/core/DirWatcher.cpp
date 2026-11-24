@@ -18,12 +18,6 @@ namespace picsel {
 
 namespace {
 
-// A new file is reported once nothing modified it for this long, even without
-// IN_CLOSE_WRITE (hard links, writers keeping the file open).
-constexpr int kSettleMs = 1000;
-// How long an IN_MOVED_FROM waits for its IN_MOVED_TO in a later read.
-constexpr int kMoveGraceMs = 80;
-
 constexpr quint32 kWatchMask = IN_CREATE | IN_CLOSE_WRITE | IN_MODIFY | IN_MOVED_FROM | IN_MOVED_TO
     | IN_DELETE | IN_DELETE_SELF | IN_MOVE_SELF | IN_ONLYDIR | IN_EXCL_UNLINK;
 
