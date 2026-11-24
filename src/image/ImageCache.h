@@ -56,7 +56,8 @@ public:
     QImage waitFor(const QString &name, int timeoutMs);
 
     void invalidate(const QString &name);
-    // Forgets |name| (file deleted, or replaced by another file of that name).
+    // Forgets |name| (file deleted, or replaced by another file of that name)
+    // and stops decoding it until the next setFiles() lists it again.
     void remove(const QString &name);
     // Forgets every image (keeps the file list).
     void clear();

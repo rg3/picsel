@@ -73,7 +73,8 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
     the visible range. The budget evicts the farthest entries, never ones
     nearer than the candidate, and never injected video frames.
   - Per-entry generations drop stale in-flight results after `remove()` or
-    `clear()` (a file replaced under the same name).
+    `clear()` (a file replaced under the same name). A removed entry is
+    skipped until the next `setFiles()` lists it again.
 - **QML access:** QML gets images through `CacheImageProvider`
   (`image://thumb|full/<session>/<uid>/<version>`). Providers run on QML
   loader threads and only touch the thread-safe cache plus a mutex-guarded

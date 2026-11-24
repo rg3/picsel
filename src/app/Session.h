@@ -6,7 +6,6 @@
 #include "core/DirWatcher.h"
 #include "core/Metadata.h"
 #include "core/Mp4Info.h"
-#include "image/VideoThumbnailer.h"
 #include "core/Similarity.h"
 #include "core/Mover.h"
 #include "core/SelectionDb.h"
@@ -14,6 +13,7 @@
 #include "core/Sorting.h"
 #include "image/ImageCache.h"
 #include "image/ImageProviders.h"
+#include "image/VideoThumbnailer.h"
 
 #include <QHash>
 #include <QObject>
@@ -52,7 +52,7 @@ public:
     explicit Session(const QString &dir, QObject *parent = nullptr);
     ~Session() override;
 
-    // Opens an existing picsel.db, or creates one when |create| is set.
+    // Opens the existing picsel.db; create() sets up a new one.
     bool open();
     bool create(const QString &targetDir, bool defaultSelected);
     QString errorString() const { return m_error; }

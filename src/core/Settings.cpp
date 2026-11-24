@@ -3,6 +3,8 @@
 
 #include <QSettings>
 
+#include <algorithm>
+
 namespace picsel::settings {
 
 namespace {

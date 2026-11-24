@@ -2,7 +2,6 @@
 #include "Session.h"
 
 #include "core/DirScanner.h"
-#include "core/Settings.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -11,7 +10,6 @@
 #include <QMap>
 #include <QTimeZone>
 #include <QUrl>
-#include <QFileInfo>
 
 #include <algorithm>
 #include <cerrno>
@@ -118,8 +116,10 @@ bool Session::open() {
         return false;
     }
     // Older databases may lack it; it is what reveals a moved or copied folder.
-    if (m_db.config(QString::fromLatin1(cfg::SourceDir)).isEmpty())
-        m_db.setConfig(QString::fromLatin1(cfg::SourceDir), m_dir);
+    if (m_db.config(QString::fromLatin1(cfg::SourceDir)).isEmpty()
+        && !m_db.setConfig(QString::fromLatin1(cfg::SourceDir), m_dir))
+        qWarning().noquote() << "picsel: cannot record the folder in" << SelectionDb::dbPath(m_dir)
+                             << m_db.lastError(); // only needed to detect a later move
     m_targetDir = m_db.config(QString::fromLatin1(cfg::TargetDir));
     m_defaultSelected = m_db.config(QString::fromLatin1(cfg::DefaultSelected)) == QLatin1String("1");
     m_sortMode = sortModeFromString(m_db.config(QString::fromLatin1(cfg::SortMode)));
@@ -263,10 +263,13 @@ void Session::onMetadataRead(const QString &name, qint64 size, qint64 mtimeNs, c
 void Session::flushMetaWrites() {
     if (m_pendingMeta.isEmpty() || !m_db.isOpen())
         return;
+    // On failure the batch is dropped: the files are read again next time.
     SelectionDb::Transaction tx(m_db);
-    for (auto i = m_pendingMeta.cbegin(); i != m_pendingMeta.cend(); ++i)
-        m_db.setMeta(i.key(), i.value());
-    tx.commit();
+    bool ok = true;
+    for (auto i = m_pendingMeta.cbegin(); ok && i != m_pendingMeta.cend(); ++i)
+        ok = m_db.setMeta(i.key(), i.value());
+    if (!ok || !tx.commit())
+        emit errorOccurred(tr("Could not save picture details: %1").arg(m_db.lastError()));
     m_pendingMeta.clear();
 }
 
@@ -334,7 +337,8 @@ void Session::setSortMode(const QString &mode) {
     if (m == m_sortMode)
         return;
     m_sortMode = m;
-    m_db.setConfig(QString::fromLatin1(cfg::SortMode), sortModeToString(m));
+    if (!m_db.setConfig(QString::fromLatin1(cfg::SortMode), sortModeToString(m)))
+        emit errorOccurred(tr("Could not save the sort order: %1").arg(m_db.lastError()));
     resortAll();
     emit sortModeChanged();
 }
@@ -432,7 +436,7 @@ QVariantMap Session::info(int row) const {
     const qint64 offset = m_offsets.value(it->meta.camera, 0);
     if (offset != 0 && it->sortTimeMs != kNoTime) {
         const QDateTime corrected = QDateTime::fromMSecsSinceEpoch(it->sortTimeMs, QTimeZone::UTC);
-        date = corrected.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")) + tr(" (clock corrected)");
+        date = corrected.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")) + QLatin1Char(' ') + tr("(clock corrected)");
     }
     m[QStringLiteral("date")] = date;
     const PhotoInfo details = m_details.value(it->name);
@@ -619,10 +623,13 @@ void Session::flushRemovals() {
         return;
     const QStringList names = std::exchange(m_pendingRemovals, {});
     if (m_db.isOpen()) {
+        // On failure the rows stay; the next open drops them again.
         SelectionDb::Transaction tx(m_db);
-        for (const QString &n : names)
-            m_db.removeFile(n);
-        tx.commit();
+        bool ok = true;
+        for (int i = 0; ok && i < names.size(); ++i)
+            ok = m_db.removeFile(names[i]);
+        if (!ok || !tx.commit())
+            emit errorOccurred(tr("Could not record removed files: %1").arg(m_db.lastError()));
     }
     for (const QString &n : names)
         removeItem(n);
@@ -702,7 +709,8 @@ void Session::onFileAdded(const DiskFile &f) {
 void Session::onFileRemoved(const QString &name) {
     if (m_model.rowOf(name) < 0)
         return; // already gone (e.g. moved by us)
-    m_db.removeFile(name);
+    if (!m_db.removeFile(name))
+        emit errorOccurred(tr("Could not record the removal of %1: %2").arg(name, m_db.lastError()));
     const QString current = m_currentName;
     removeItem(name);
     scheduleCacheOrder();
@@ -744,8 +752,7 @@ void Session::onFileRenamed(const QString &from, const DiskFile &to) {
         m_pendingMeta.insert(to.name, m_pendingMeta.take(from)); // its old row is gone
     if (m_currentName == from)
         m_currentName = to.name;
-    const int newRow = m_model.resort(row, m_sortMode);
-    m_model.notifyChanged(newRow, {});
+    const int newRow = m_model.resort(row, m_sortMode); // also notifies the row
     // The caches are keyed by name: the picture is decoded again under its new name.
     scheduleCacheOrder();
     if (it->kind == MediaKind::Video && m_thumbBox.isValid()) {
@@ -766,7 +773,8 @@ void Session::onFileChanged(const DiskFile &f) {
         onFileAdded(f);
         return;
     }
-    m_db.updateStat(f.name, f.size, f.mtimeNs, f.inode);
+    if (!m_db.updateStat(f.name, f.size, f.mtimeNs, f.inode))
+        emit errorOccurred(tr("Could not record the change of %1: %2").arg(f.name, m_db.lastError()));
     it->size = f.size;
     it->mtimeNs = f.mtimeNs;
     it->inode = f.inode;

@@ -139,7 +139,10 @@ void ImageCache::remove(const QString &name) {
     if (it == m_entries.end())
         return;
     resetEntryLocked(*it);
-    pumpLocked();
+    // Keep the slot (m_order and m_index refer to it) but skip it until the
+    // next setFiles(), which decides again for a new file of that name.
+    it->decodable = false;
+    pumpLocked(); // the freed bytes may let other work start
 }
 
 void ImageCache::clear() {

@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QStringList>
 
+#include <algorithm>
 #include <cmath>
 #include <exiv2/exiv2.hpp>
 
@@ -96,7 +97,7 @@ std::optional<PhotoInfo> readPhotoInfo(const QString &path) {
         info.lens = str(exif, "Exif.Photo.LensModel");
 
         QStringList parts;
-        if (auto t = num(exif, "Exif.Photo.ExposureTime"))
+        if (auto t = num(exif, "Exif.Photo.ExposureTime"); t && *t > 0)
             parts << formatExposureTime(*t);
         if (auto f = num(exif, "Exif.Photo.FNumber"); f && *f > 0)
             parts << QStringLiteral("f/%1").arg(QString::number(*f, 'g', 2));

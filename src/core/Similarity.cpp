@@ -3,6 +3,8 @@
 
 #include "Sorting.h"
 
+#include <cstdlib>
+
 namespace picsel {
 
 quint64 dHash(const QImage &image) {

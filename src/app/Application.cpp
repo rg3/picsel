@@ -298,10 +298,14 @@ void Application::showMainWindow(Session *session, const QString &highlight) {
 }
 
 void Application::showError(const QString &message) {
-    if (createWindow("ErrorWindow", {{QStringLiteral("message"), message}}))
+    QObject *w = createWindow("ErrorWindow", {{QStringLiteral("message"), message}});
+    if (auto *win = qobject_cast<QQuickWindow *>(w)) {
         ++m_pendingWindows;
-    else
+        connect(win, &QQuickWindow::closing, win, &QObject::deleteLater);
+    } else {
+        delete w;
         qCritical().noquote() << message;
+    }
 }
 
 void Application::raise(QQuickWindow *w, const QByteArray &token) {

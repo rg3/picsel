@@ -56,6 +56,9 @@ private slots:
         writeJpeg(dir.filePath(name), Qt::blue);
         cache.remove(name);
         QVERIFY(cache.image(name).isNull());
+        QTest::qWait(200);
+        QCOMPARE(ready.size(), 1); // not decoded again until it is listed again
+        cache.setFiles({name}, {true});
         QTRY_COMPARE(ready.size(), 2);
         QVERIFY(qBlue(cache.image(name).pixel(5, 5)) > 200);
     }
