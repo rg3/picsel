@@ -136,7 +136,10 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 - **Style:** Qt Quick Controls Fusion, with an explicit dark `Theme.palette`
   set on every top-level window. Basic style, or only
   `QGuiApplication::setPalette`, let KDE's light per-control palettes leak
-  in.
+  in. The application palette, for windows QML doesn't style itself (Qt's
+  fallback dialogs), is built from `Theme.palette` at startup
+  (`Application::applyThemePalette`), so the colours are defined only in
+  `Theme.qml`.
 - **Selection keys:** S, D, T and Ctrl+Z are `Shortcut`s on the window, so
   they work in both the mosaic and the full view. They are disabled while a
   dialog is open. Arrow and other navigation keys are handled per view.

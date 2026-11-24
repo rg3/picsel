@@ -65,6 +65,8 @@ private:
     void showSetup(const QString &dir, const QString &highlight, const DbProbe &probe);
     void showMainWindow(Session *session, const QString &highlight);
     void showError(const QString &message);
+    // Application palette from Theme.qml (see the .cpp).
+    void applyThemePalette();
     QObject *createWindow(const char *type, const QVariantMap &props);
     void raise(QQuickWindow *w, const QByteArray &token);
     void quitIfIdle();

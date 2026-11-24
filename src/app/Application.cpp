@@ -12,11 +12,14 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QJsonDocument>
+#include <QMetaEnum>
+#include <QPalette>
 #include <QJsonObject>
 #include <QLocalSocket>
 #include <QQmlComponent>
 #include <QUrl>
 
+#include <cctype>
 #include <unistd.h>
 
 namespace picsel {
@@ -27,10 +30,45 @@ namespace {
 QString serverName() {
     return QStringLiteral("picsel-%1").arg(::getuid());
 }
+// The colours of a QML Palette's color group (Theme.qml), by QPalette role:
+// the QML property names are the role names with a lower-case first letter.
+void copyColorGroup(const QObject *from, QPalette::ColorGroup group, QPalette &to) {
+    const QMetaEnum roles = QMetaEnum::fromType<QPalette::ColorRole>();
+    for (int i = 0; i < roles.keyCount(); ++i) {
+        const auto role = QPalette::ColorRole(roles.value(i));
+        if (role == QPalette::NoRole || role >= QPalette::NColorRoles)
+            continue;
+        QByteArray name = roles.key(i);
+        name[0] = char(std::tolower(static_cast<unsigned char>(name[0])));
+        const QVariant v = from->property(name.constData());
+        if (v.metaType() == QMetaType::fromType<QColor>())
+            to.setColor(group, role, v.value<QColor>());
+    }
+}
 } // namespace
+
+void Application::applyThemePalette() {
+    // One dark look regardless of the desktop's theme. Theme.qml defines the
+    // colours; QML windows use its palette directly, and this application
+    // palette covers windows QML doesn't style itself (Qt's fallback dialogs).
+    auto *theme = m_engine.singletonInstance<QObject *>(QStringLiteral("Picsel"), QStringLiteral("Theme"));
+    auto *palette = theme ? theme->property("palette").value<QObject *>() : nullptr;
+    if (!palette) {
+        qWarning().noquote() << "picsel: Theme.palette not found; using the desktop's colours";
+        return;
+    }
+    QPalette p = QGuiApplication::palette();
+    for (const auto &[name, group] : {std::pair{"active", QPalette::Active}, std::pair{"inactive", QPalette::Inactive},
+                                      std::pair{"disabled", QPalette::Disabled}}) {
+        if (auto *colors = palette->property(name).value<QObject *>())
+            copyColorGroup(colors, group, p);
+    }
+    QGuiApplication::setPalette(p);
+}
 
 Application::Application(QObject *parent) : QObject(parent) {
     s_instance = this;
+    applyThemePalette();
     m_engine.addImageProvider(QLatin1String(kThumbProvider), new ThumbImageProvider);
     m_engine.addImageProvider(QLatin1String(kFullProvider), new FullImageProvider);
     connect(&m_server, &QLocalServer::newConnection, this, &Application::onNewConnection);
