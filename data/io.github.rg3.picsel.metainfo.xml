@@ -20,6 +20,7 @@
     <ul>
       <li>Fast thumbnail mosaic and full view, driven by the keyboard</li>
       <li>Every change is saved immediately, so you can stop and continue later</li>
+      <li>Folders reopen at the picture you were on when you closed them</li>
       <li>Sorting by date taken, with per-camera clock corrections</li>
       <li>Bursts of similar shots are marked so you can pick the best one</li>
       <li>Safe moves: conflicts are checked before anything is moved</li>

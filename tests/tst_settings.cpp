@@ -60,6 +60,52 @@ private slots:
         raw().setValue("view/columns", "many");
         QCOMPARE(settings::columns(), settings::kColumns.fallback);
     }
+
+    void resumeDefaultsToAlwaysAndRoundTrips() {
+        QCOMPARE(settings::resume(), settings::Resume::Always);
+        for (auto r : {settings::Resume::Folder, settings::Resume::Never, settings::Resume::Always}) {
+            settings::setResume(r);
+            QCOMPARE(settings::resume(), r);
+            QCOMPARE(settings::parseResume(settings::resumeToString(r)), std::optional(r));
+        }
+        QCOMPARE(raw().value("start/resume").toString(), QStringLiteral("always"));
+    }
+
+    void unknownResumeIsRejected() {
+        QCOMPARE(settings::parseResume(QStringLiteral("Always")), std::nullopt);
+        QCOMPARE(settings::parseResume(QString()), std::nullopt);
+        raw().setValue("start/resume", "sometimes");
+        QCOMPARE(settings::resume(), settings::Resume::Always);
+    }
+
+    void startRow_data() {
+        QTest::addColumn<int>("mode");
+        QTest::addColumn<int>("given");      // -1: a folder was opened
+        QTest::addColumn<int>("remembered"); // -1: nothing remembered
+        QTest::addColumn<bool>("exact");     // false: the remembered picture is gone
+        QTest::addColumn<int>("expected");
+        const int always = int(settings::Resume::Always), folder = int(settings::Resume::Folder),
+                  never = int(settings::Resume::Never);
+        QTest::newRow("always, folder") << always << -1 << 7 << true << 7;
+        QTest::newRow("always, picture") << always << 3 << 7 << true << 7;
+        QTest::newRow("always, picture, remembered gone") << always << 3 << 7 << false << 3;
+        QTest::newRow("always, folder, remembered gone") << always << -1 << 7 << false << 7;
+        QTest::newRow("always, picture, nothing remembered") << always << 3 << -1 << false << 3;
+        QTest::newRow("folder mode, folder") << folder << -1 << 7 << true << 7;
+        QTest::newRow("folder mode, picture") << folder << 3 << 7 << true << 3;
+        QTest::newRow("never, folder") << never << -1 << 7 << true << 0;
+        QTest::newRow("never, picture") << never << 3 << 7 << true << 3;
+        QTest::newRow("nothing at all") << always << -1 << -1 << false << 0;
+    }
+
+    void startRow() {
+        QFETCH(int, mode);
+        QFETCH(int, given);
+        QFETCH(int, remembered);
+        QFETCH(bool, exact);
+        QFETCH(int, expected);
+        QCOMPARE(settings::startRow(settings::Resume(mode), given, remembered, exact), expected);
+    }
 };
 
 QTEST_GUILESS_MAIN(TestSettings)

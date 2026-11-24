@@ -132,7 +132,70 @@ bool Session::open() {
     m_targetDir = m_db.config(QString::fromLatin1(cfg::TargetDir));
     m_defaultSelected = m_db.config(QString::fromLatin1(cfg::DefaultSelected)) == QLatin1String("1");
     m_sortMode = sortModeFromString(m_db.config(QString::fromLatin1(cfg::SortMode)));
-    return loadFiles();
+    const QString remembered = m_db.config(QString::fromLatin1(cfg::CurrentFile));
+    LoadInfo load;
+    if (!loadFiles(&load))
+        return false;
+    findRemembered(remembered, load);
+    m_loaded = true;
+    return true;
+}
+
+void Session::findRemembered(const QString &remembered, const LoadInfo &load) {
+    m_rememberedName.clear();
+    m_rememberedExact = false;
+    QString name = remembered;
+    for (const auto &[from, to] : load.changes.renamed) {
+        if (from == name) {
+            name = to;
+            break;
+        }
+    }
+    if (name.isEmpty() || m_model.count() == 0)
+        return;
+    if (m_model.rowOf(name) >= 0) {
+        m_rememberedName = name;
+        m_rememberedExact = true;
+        return;
+    }
+    // Gone while picsel was closed: take the picture now in its place, as
+    // removeItem() does when the current picture goes away while open.
+    for (const DbFile &f : load.before) {
+        if (f.name != name)
+            continue;
+        Item gone;
+        gone.name = f.name;
+        gone.sortTimeMs = correctedTimeMs(f.meta.exifTime, f.meta.camera, m_offsets);
+        const int pos = m_model.sortedPosition(gone, m_sortMode, -1);
+        m_rememberedName = m_model.at(std::min(pos, m_model.count() - 1))->name;
+        return;
+    }
+}
+
+int Session::rememberedRow(bool *exact) const {
+    *exact = m_rememberedExact;
+    return m_rememberedName.isEmpty() ? -1 : m_model.rowOf(m_rememberedName);
+}
+
+void Session::saveCurrentFile() {
+    // An empty name (nothing was ever highlighted) keeps what was remembered.
+    if (!m_loaded || !m_db.isOpen() || m_currentName.isEmpty())
+        return;
+    if (!m_db.setConfig(QString::fromLatin1(cfg::CurrentFile), m_currentName))
+        qWarning().noquote() << "picsel: cannot remember the current picture in"
+                             << SelectionDb::dbPath(m_dir) << m_db.lastError();
+}
+
+void Session::setResume(const QString &mode) {
+    const auto r = settings::parseResume(mode);
+    if (!r) {
+        qWarning().noquote() << "picsel: unknown resume mode" << mode;
+        return;
+    }
+    if (*r == settings::resume())
+        return;
+    settings::setResume(*r);
+    emit resumeChanged();
 }
 
 bool Session::create(const QString &targetDir, bool defaultSelected) {
@@ -159,7 +222,7 @@ Item Session::makeItem(const DbFile &f) {
     return it;
 }
 
-bool Session::loadFiles() {
+bool Session::loadFiles(LoadInfo *info) {
     // Watch first so nothing created during the scan is missed (the watcher
     // and the reconcile below agree on the result either way).
     if (!m_watcher.start(m_dir))
@@ -184,6 +247,8 @@ bool Session::loadFiles() {
         fail(tr("Cannot update %1: %2").arg(SelectionDb::dbPath(m_dir), m_db.lastError()));
         return false;
     }
+    if (info)
+        *info = {before, r};
     QVector<Item> items;
     const QVector<DbFile> rows = m_db.files(&readOk);
     if (!readOk) {

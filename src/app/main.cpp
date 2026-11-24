@@ -39,12 +39,26 @@ int main(int argc, char *argv[]) {
     const QCommandLineOption checkOption(QStringLiteral("check"),
         QStringLiteral("Check that the Qt modules, plugins and codecs picsel needs are installed."));
     parser.addOption(checkOption);
+    const QCommandLineOption resumeOption(QStringLiteral("resume"),
+        QStringLiteral("Start at the picture highlighted when the folder was last closed: \"always\" "
+                       "(even when a picture is given; the default), \"folder\" (only when a folder "
+                       "is given) or \"never\". Overrides the setting in the side panel."),
+        QStringLiteral("when"));
+    parser.addOption(resumeOption);
     parser.addPositionalArgument(QStringLiteral("path"),
                                  QStringLiteral("A picture (opens its folder) or a folder."),
                                  QStringLiteral("[path]"));
     parser.process(app);
     if (parser.isSet(checkOption))
         return picsel::runSystemCheck();
+    std::optional<picsel::settings::Resume> resume;
+    if (parser.isSet(resumeOption)) {
+        resume = picsel::settings::parseResume(parser.value(resumeOption));
+        if (!resume) {
+            qCritical().noquote() << "picsel: --resume must be always, folder or never";
+            return 1; // as for Qt's own option errors
+        }
+    }
 
     QString path;
     if (!parser.positionalArguments().isEmpty()) {
@@ -59,12 +73,12 @@ int main(int argc, char *argv[]) {
     // requests from) the user's running instance.
     const bool standalone = qEnvironmentVariableIsSet("PICSEL_AUTOMATION")
         || qEnvironmentVariableIsSet("PICSEL_STANDALONE");
-    if (!standalone && picsel::Application::forwardToRunningInstance(path))
+    if (!standalone && picsel::Application::forwardToRunningInstance(path, resume))
         return 0;
 
     picsel::Application picselApp(nullptr);
     if (!standalone)
         picselApp.listen();
-    picselApp.openPath(path);
+    picselApp.openPath(path, {}, resume);
     return app.exec();
 }

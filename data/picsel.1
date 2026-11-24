@@ -4,6 +4,7 @@
 picsel \- choose which pictures of a folder to keep
 .SH SYNOPSIS
 .B picsel
+.RB [ \-\-resume =\fIwhen\fR]
 .RI [ path ]
 .br
 .B picsel
@@ -18,8 +19,8 @@ parent folder).
 .PP
 If
 .I path
-is a picture, picsel opens its folder with that picture highlighted. If it
-is a folder, or the
+is a picture, picsel opens its folder with that picture highlighted, unless
+the folder remembers another one (see below). If it is a folder, or the
 .I picsel.db
 file of a folder, picsel opens that folder. Without
 .IR path ,
@@ -30,12 +31,38 @@ The first time a folder is opened, picsel asks for the destination folder
 and for whether pictures start as selected or not selected. Every change is
 saved immediately, so you can quit and continue later. Files added, removed
 or renamed while picsel runs are picked up automatically.
+.PP
+Closing a folder's window remembers the highlighted picture, and by default
+the folder reopens there, even when it is opened through another picture.
+A remembered picture renamed while picsel was closed is followed; if it is
+gone, the picture now in its place is highlighted, unless a picture was
+given. The
+.B Reopen at
+setting in the side panel, or
+.BR \-\-resume ,
+changes this.
 .SH OPTIONS
 .TP
 .B \-\-check
 Check that the Qt modules, plugins and codecs picsel needs at run time are
 installed, print a report and exit. The exit status is 1 if picsel cannot
 start; missing video codecs only affect videos.
+.TP
+.BI \-\-resume= when
+Where the folder starts, for this launch only (it overrides the side panel's
+.B Reopen at
+setting).
+.B always
+(the default) starts at the picture highlighted when the folder was last
+closed, even if
+.I path
+is another picture;
+.B folder
+does so only when
+.I path
+is a folder, and starts at the given picture otherwise;
+.B never
+starts at the given picture or at the first one, like picsel 0.1.0.
 .TP
 .BR \-h ", " \-\-help
 Show the command-line help and exit.
@@ -70,10 +97,11 @@ Undo selection changes.
 .SH FILES
 .TP
 .I picsel.db
-Per-folder state (selection, destination), kept inside the opened folder.
+Per-folder state (selection, destination, the picture highlighted at the
+last close), kept inside the opened folder.
 .TP
 .I ~/.config/picsel/picsel.ini
-Global settings, such as camera clock corrections.
+Global settings, such as camera clock corrections and where folders reopen.
 .SH ENVIRONMENT
 .TP
 .B PICSEL_STANDALONE

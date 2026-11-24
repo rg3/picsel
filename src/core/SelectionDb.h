@@ -27,6 +27,8 @@ inline constexpr const char *SourceDir = "source_dir";
 inline constexpr const char *TargetDir = "target_dir";
 inline constexpr const char *DefaultSelected = "default_selected";
 inline constexpr const char *SortMode = "sort_mode";
+// Picture highlighted when the window was last closed (settings::Resume).
+inline constexpr const char *CurrentFile = "current_file";
 } // namespace cfg
 
 // Cached per-file metadata. Valid only while size/mtime match the file.

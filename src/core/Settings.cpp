@@ -3,6 +3,8 @@
 
 #include <QSettings>
 
+#include <algorithm>
+
 namespace picsel::settings {
 
 namespace {
@@ -65,5 +67,45 @@ bool showSimilar() { return store().value(QStringLiteral("similar/show"), true).
 void setShowSimilar(bool on) { store().setValue(QStringLiteral("similar/show"), on); }
 int similarBits() { return readInt(QStringLiteral("similar/bits"), kSimilarBits); }
 void setSimilarBits(int v) { writeInt(QStringLiteral("similar/bits"), kSimilarBits, v); }
+
+std::optional<Resume> parseResume(const QString &s) {
+    if (s == QLatin1String("always"))
+        return Resume::Always;
+    if (s == QLatin1String("folder"))
+        return Resume::Folder;
+    if (s == QLatin1String("never"))
+        return Resume::Never;
+    return std::nullopt;
+}
+
+QString resumeToString(Resume r) {
+    switch (r) {
+    case Resume::Always: return QStringLiteral("always");
+    case Resume::Folder: return QStringLiteral("folder");
+    case Resume::Never: break;
+    }
+    return QStringLiteral("never");
+}
+
+Resume resume() {
+    return parseResume(store().value(QStringLiteral("start/resume")).toString()).value_or(Resume::Always);
+}
+void setResume(Resume r) { store().setValue(QStringLiteral("start/resume"), resumeToString(r)); }
+
+int startRow(Resume mode, int given, int remembered, bool exact) {
+    int row = -1;
+    switch (mode) {
+    case Resume::Always:
+        row = exact && remembered >= 0 ? remembered : given >= 0 ? given : remembered;
+        break;
+    case Resume::Folder:
+        row = given >= 0 ? given : remembered;
+        break;
+    case Resume::Never:
+        row = given;
+        break;
+    }
+    return std::max(row, 0);
+}
 
 } // namespace picsel::settings

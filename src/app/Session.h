@@ -3,6 +3,7 @@
 #pragma once
 
 #include "FileListModel.h"
+#include "core/DirScanner.h"
 #include "core/DirWatcher.h"
 #include "core/Metadata.h"
 #include "core/Mp4Info.h"
@@ -62,6 +63,8 @@ class Session : public QObject {
     Q_PROPERTY(int similarSeconds READ similarSeconds WRITE setSimilarSeconds NOTIFY similarChanged)
     Q_PROPERTY(int similarBits READ similarBits WRITE setSimilarBits NOTIFY similarChanged)
     Q_PROPERTY(int groupCount READ groupCount NOTIFY groupsChanged)
+    // Global settings::Resume, as "always", "folder" or "never".
+    Q_PROPERTY(QString resume READ resumeString WRITE setResume NOTIFY resumeChanged)
 
 public:
     explicit Session(const QString &dir, QObject *parent = nullptr);
@@ -105,6 +108,17 @@ public:
     int similarBits() const { return m_similarBits; }
     void setSimilarBits(int b);
     int groupCount() const { return m_groupCount; }
+    QString resumeString() const { return settings::resumeToString(settings::resume()); }
+    void setResume(const QString &mode);
+
+    // The picture highlighted when this folder's window was last closed, as
+    // found by open(): followed through a rename made while picsel was
+    // closed, or, if it is gone, the one now in its place (|exact| false).
+    // -1 if nothing usable was remembered.
+    int rememberedRow(bool *exact) const;
+    // Remembers the highlighted picture for the next open (normal close only:
+    // saving on every move would write to disk on each key press).
+    void saveCurrentFile();
 
     // Checks the selected files against the target folder. Returns
     // {count, total, target, fatal, blocked: [names], conflicts: [names]}.
@@ -157,6 +171,7 @@ signals:
     void similarChanged();
     void showDetailsChanged();
     void groupsChanged();
+    void resumeChanged();
     void moveProgress(int done, int total, const QString &name);
     void moveConflict(const QString &name);
     // Summary of a finished move, for the result message.
@@ -168,7 +183,13 @@ private:
         bool previous;
     };
 
-    bool loadFiles();
+    // What loading found, for findRemembered().
+    struct LoadInfo {
+        QVector<DbFile> before;   // DB rows before reconciling with the disk
+        ReconcileResult changes;  // what changed while picsel was closed
+    };
+    bool loadFiles(LoadInfo *info = nullptr);
+    void findRemembered(const QString &name, const LoadInfo &load);
     Item makeItem(const DbFile &f);
     void rebuildCacheOrder();
     void scheduleCacheOrder();
@@ -215,6 +236,9 @@ private:
     QVector<UndoEntry> m_undo;
     QTimer m_cacheOrderTimer;
     QString m_currentName;
+    QString m_rememberedName; // see rememberedRow()
+    bool m_rememberedExact = false;
+    bool m_loaded = false;    // open() succeeded: m_currentName may be saved
     QHash<QString, PhotoInfo> m_details;      // lens/exposure for the info panel
     QHash<QString, FileMeta> m_pendingMeta;   // to write to the DB in one transaction
     QTimer m_metaFlushTimer;

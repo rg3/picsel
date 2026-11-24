@@ -77,6 +77,7 @@ Application::Application(QObject *parent) : QObject(parent) {
 
 Application::~Application() {
     for (Open &o : m_open) {
+        o.session->saveCurrentFile(); // quitting is a normal close too
         delete o.window;
         delete o.session;
     }
@@ -90,7 +91,7 @@ Application *Application::create(QQmlEngine *, QJSEngine *engine) {
     return s_instance;
 }
 
-bool Application::forwardToRunningInstance(const QString &path) {
+bool Application::forwardToRunningInstance(const QString &path, std::optional<settings::Resume> resume) {
     QLocalSocket sock;
     sock.connectToServer(serverName());
     if (!sock.waitForConnected(500))
@@ -98,6 +99,8 @@ bool Application::forwardToRunningInstance(const QString &path) {
     QJsonObject msg;
     msg[QStringLiteral("path")] = path;
     msg[QStringLiteral("token")] = QString::fromUtf8(qgetenv("XDG_ACTIVATION_TOKEN"));
+    if (resume)
+        msg[QStringLiteral("resume")] = settings::resumeToString(*resume);
     sock.write(QJsonDocument(msg).toJson(QJsonDocument::Compact) + '\n');
     if (!sock.waitForBytesWritten(1000))
         return false;
@@ -131,8 +134,10 @@ void Application::onNewConnection() {
             const QJsonObject msg = QJsonDocument::fromJson(sock->readLine()).object();
             sock->write("ok\n");
             sock->flush();
+            // A missing or unknown "resume" (an older or newer picsel) means the setting.
             openPath(msg.value(QStringLiteral("path")).toString(),
-                     msg.value(QStringLiteral("token")).toString().toUtf8());
+                     msg.value(QStringLiteral("token")).toString().toUtf8(),
+                     settings::parseResume(msg.value(QStringLiteral("resume")).toString()));
         });
     }
 }
@@ -156,7 +161,7 @@ bool Application::isSameDir(const QString &a, const QString &b) const {
     return !ca.isEmpty() && ca == QFileInfo(toLocalPath(b)).canonicalFilePath();
 }
 
-void Application::openPath(const QString &path, const QByteArray &token) {
+void Application::openPath(const QString &path, const QByteArray &token, std::optional<settings::Resume> resume) {
     if (path.isEmpty()) {
         showPicker();
         return;
@@ -190,7 +195,7 @@ void Application::openPath(const QString &path, const QByteArray &token) {
         return;
     case DbProbe::State::NotSetUp:
     case DbProbe::State::Moved:
-        showSetup(dir, highlight, probe);
+        showSetup(dir, highlight, probe, resume);
         return;
     case DbProbe::State::Ready:
         break;
@@ -201,7 +206,7 @@ void Application::openPath(const QString &path, const QByteArray &token) {
         delete session;
         return;
     }
-    showMainWindow(session, highlight);
+    showMainWindow(session, highlight, resume);
 }
 
 void Application::openFolder(const QString &pathOrUrl) {
@@ -237,7 +242,8 @@ void Application::showPicker() {
     }
 }
 
-void Application::showSetup(const QString &dir, const QString &highlight, const DbProbe &probe) {
+void Application::showSetup(const QString &dir, const QString &highlight, const DbProbe &probe,
+                            std::optional<settings::Resume> resume) {
     // Suggest the stored destination when it still works, else the parent
     // folder. A folder that was moved or copied gets the parent of where it
     // is now: its stored destination belongs to the old place.
@@ -263,7 +269,12 @@ void Application::showSetup(const QString &dir, const QString &highlight, const 
     if (auto *win = qobject_cast<QQuickWindow *>(w)) {
         ++m_pendingWindows;
         m_setupWindows.insert(dir, win);
-        connect(win, &QObject::destroyed, this, [this, dir] { m_setupWindows.remove(dir); });
+        if (resume)
+            m_setupResume.insert(dir, *resume);
+        connect(win, &QObject::destroyed, this, [this, dir] {
+            m_setupWindows.remove(dir);
+            m_setupResume.remove(dir);
+        });
     } else {
         delete w;
         quitIfIdle();
@@ -275,6 +286,9 @@ void Application::setupAccepted(const QString &sourceDir, const QString &targetD
     --m_pendingWindows;
     if (QPointer<QQuickWindow> w = m_setupWindows.take(sourceDir))
         w->deleteLater();
+    // A folder set up before (then moved or copied) may remember a picture.
+    const std::optional<settings::Resume> resume = m_setupResume.contains(sourceDir)
+        ? std::optional(m_setupResume.take(sourceDir)) : std::nullopt;
     auto *session = new Session(sourceDir);
     if (!session->create(toLocalPath(targetDir), defaultSelected)) {
         showError(session->errorString());
@@ -282,7 +296,7 @@ void Application::setupAccepted(const QString &sourceDir, const QString &targetD
         quitIfIdle();
         return;
     }
-    showMainWindow(session, highlight);
+    showMainWindow(session, highlight, resume);
 }
 
 void Application::setupCancelled() {
@@ -299,8 +313,12 @@ void Application::setupCancelled() {
     quitIfIdle();
 }
 
-void Application::showMainWindow(Session *session, const QString &highlight) {
-    const int row = highlight.isEmpty() ? 0 : std::max(0, session->rowOf(highlight));
+void Application::showMainWindow(Session *session, const QString &highlight,
+                                 std::optional<settings::Resume> resume) {
+    bool exact = false;
+    const int remembered = session->rememberedRow(&exact);
+    const int row = settings::startRow(resume.value_or(settings::resume()),
+                                       highlight.isEmpty() ? -1 : session->rowOf(highlight), remembered, exact);
     QObject *obj = createWindow("Main", {
         {QStringLiteral("session"), QVariant::fromValue(session)},
         {QStringLiteral("initialIndex"), row},
@@ -323,6 +341,7 @@ void Application::showMainWindow(Session *session, const QString &highlight) {
         for (int i = 0; i < m_open.size(); ++i) {
             if (m_open[i].window == window) {
                 Session *s = m_open[i].session;
+                s->saveCurrentFile();
                 m_open.removeAt(i);
                 window->deleteLater();
                 s->deleteLater();

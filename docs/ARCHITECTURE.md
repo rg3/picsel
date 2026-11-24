@@ -26,7 +26,8 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 
 - **`picsel.db`** in the source folder holds two tables:
   - `config(key, value)`: app_id, schema_version, source and target folders,
-    default selection, sort mode.
+    default selection, sort mode, current file. New keys need no schema
+    bump: older versions ignore them.
   - `files(name, selected, size, mtime_ns, inode, exif_time, camera, dhash)`.
   - The `exif_time` and `camera` columns are a cache, valid only while size
     and mtime match. A NULL `exif_time` means "not read yet"
@@ -46,6 +47,14 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   on CLOSE_WRITE or 1 s settle"), and `Session::onFile*` applies them.
   Moved-away files are removed idempotently, whether the watcher or
   `MoveJob` reports them first.
+- **Current file:** `current_file` is written only on a normal close (window
+  closed or app quit), never on each move: holding an arrow key would write
+  on every step. `Session::open` follows it through reconcile's renames; if
+  it is gone, its old row's sort key finds the picture now in its place
+  (`rememberedRow`, "exact" false). `settings::startRow` then weighs it
+  against a picture given on the command line, per `settings::Resume` (side
+  panel, or `--resume`, which is forwarded to a running instance and kept
+  through the setup window).
 - **Global settings** (columns, camera clock offsets, similarity thresholds,
   show-details) are stored in `~/.config/picsel/picsel.ini` via
   `core/Settings`. Camera offsets are cached per Session; a change is pushed

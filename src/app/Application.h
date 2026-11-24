@@ -11,6 +11,9 @@
 #include <QQuickWindow>
 #include <QUrl>
 #include <QtQmlIntegration>
+#include <optional>
+
+#include "core/Settings.h"
 
 namespace picsel {
 
@@ -32,12 +35,15 @@ public:
     static Application *instance() { return s_instance; }
     static Application *create(QQmlEngine *, QJSEngine *engine);
 
-    // Sends |path| to a running instance. Returns true if one took it.
-    static bool forwardToRunningInstance(const QString &path);
+    // Sends |path| (and --resume, if given) to a running instance. Returns
+    // true if one took it.
+    static bool forwardToRunningInstance(const QString &path, std::optional<settings::Resume> resume);
     bool listen();
 
-    // Opens a file's folder (highlighting the file) or a folder; empty shows a picker.
-    void openPath(const QString &path, const QByteArray &activationToken = {});
+    // Opens a file's folder (highlighting the file) or a folder; empty shows a
+    // picker. |resume| overrides settings::resume() for this folder.
+    void openPath(const QString &path, const QByteArray &activationToken = {},
+                  std::optional<settings::Resume> resume = std::nullopt);
 
     Q_INVOKABLE void openFolder(const QString &pathOrUrl);
     // Picker cancelled or error window closed.
@@ -62,8 +68,9 @@ private:
 
     void onNewConnection();
     void showPicker();
-    void showSetup(const QString &dir, const QString &highlight, const DbProbe &probe);
-    void showMainWindow(Session *session, const QString &highlight);
+    void showSetup(const QString &dir, const QString &highlight, const DbProbe &probe,
+                   std::optional<settings::Resume> resume);
+    void showMainWindow(Session *session, const QString &highlight, std::optional<settings::Resume> resume);
     void showError(const QString &message);
     // Application palette from Theme.qml (see the .cpp).
     void applyThemePalette();
@@ -77,6 +84,8 @@ private:
     QVector<Open> m_open;
     int m_pendingWindows = 0; // setup/picker/error windows currently shown
     QHash<QString, QPointer<QQuickWindow>> m_setupWindows; // by source folder
+    // --resume of the launch that opened a setup window, by source folder.
+    QHash<QString, settings::Resume> m_setupResume;
 };
 
 } // namespace picsel

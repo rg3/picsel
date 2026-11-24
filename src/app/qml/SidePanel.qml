@@ -167,6 +167,21 @@ Rectangle {
                         onActivated: index => { root.session.sortMode = index === 1 ? "date" : "name"; root.activated() }
                     }
                     SmallButton { text: qsTr("Clocks…"); onClicked: root.cameraClocksRequested() }
+
+                    // Global, like the similar-pictures settings: how folders reopen.
+                    FieldLabel { text: qsTr("Reopen at") }
+                    SmallCombo {
+                        id: resumeCombo
+                        readonly property var modes: ["always", "folder", "never"]
+                        Layout.columnSpan: 2
+                        model: [qsTr("where I left off"), qsTr("opened picture, else left off"),
+                                qsTr("opened picture, else first")]
+                        currentIndex: Math.max(0, modes.indexOf(root.session.resume))
+                        onActivated: index => { root.session.resume = modes[index]; root.activated() }
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 600
+                        ToolTip.text: qsTr("Where this folder starts next time, after you close picsel")
+                    }
                 }
 
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.border; Layout.topMargin: 4 }

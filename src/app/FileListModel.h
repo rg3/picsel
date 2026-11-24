@@ -73,11 +73,13 @@ public:
     void notifyChanged(int row, const QList<int> &roles);
     void notifyAllChanged(const QList<int> &roles);
 
+    // Where |item| belongs in the list sorted by |mode|, ignoring |skipRow| (-1: none).
+    int sortedPosition(const Item &item, SortMode mode, int skipRow) const;
+
 signals:
     void countChanged();
 
 private:
-    int sortedPosition(const Item &item, SortMode mode, int skipRow) const;
     void invalidateIndex() { m_indexDirty = true; }
 
     QVector<Item> m_items;
