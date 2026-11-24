@@ -4,7 +4,7 @@ Pick which pictures (and videos) of a folder to keep, quickly, with the keyboard
 
 ![picsel showing a folder of lake pictures, some selected and some not](data/screenshots/mosaic.png)
 
-Typical use: dump an event's photos into `2026-11-21-Whatever/pending-selection/`,
+Typical use: dump an event's photos into `Some-Event/pending-selection/`,
 right-click any picture in the file manager → **Open with picsel**, mark the
 keepers (or the rejects), then press **Move** to move the selected ones into the
 gallery folder (by default the parent). Delete `pending-selection/` yourself
