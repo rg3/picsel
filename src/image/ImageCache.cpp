@@ -97,6 +97,15 @@ void ImageCache::setPaused(bool paused) {
     pumpLocked();
 }
 
+std::shared_ptr<ImageCache> ImageCache::createShared(Params p) {
+    return std::shared_ptr<ImageCache>(new ImageCache(p), [](ImageCache *c) {
+        if (QThread::currentThread() == c->thread())
+            delete c;
+        else
+            c->deleteLater(); // not run if the event loop has already ended: leaked at exit
+    });
+}
+
 QImage ImageCache::image(const QString &name) const {
     QMutexLocker lock(&m_mutex);
     auto it = m_entries.constFind(name);

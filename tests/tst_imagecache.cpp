@@ -2,6 +2,7 @@
 #include "image/ImageCache.h"
 
 #include <QSignalSpy>
+#include <QThread>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -108,6 +109,20 @@ private slots:
         QTRY_COMPARE(ready.size(), 3);
         QCOMPARE(ready.at(0).at(0).toString(), QStringLiteral("a.jpg"));
         QCOMPARE(ready.at(2).at(0).toString(), QStringLiteral("c.jpg"));
+    }
+
+    void sharedCacheDiesOnItsOwnThread() {
+        std::shared_ptr<ImageCache> cache = ImageCache::createShared(ImageCache::Params{});
+        QThread *diedOn = nullptr;
+        QObject::connect(cache.get(), &QObject::destroyed, cache.get(),
+                         [&diedOn] { diedOn = QThread::currentThread(); }, Qt::DirectConnection);
+        // Another thread (like the image reader) drops the last reference.
+        std::unique_ptr<QThread> other(QThread::create([ref = std::move(cache)]() mutable { ref.reset(); }));
+        other->start();
+        QVERIFY(other->wait(5000));
+        QVERIFY(!cache);
+        QTRY_VERIFY(diedOn);
+        QCOMPARE(diedOn, QThread::currentThread());
     }
 
     void clearRedecodesEverything() {

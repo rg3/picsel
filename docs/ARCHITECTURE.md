@@ -91,6 +91,9 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   - Several full-size requests wait at once (the view keeps neighbours
     loaded), so they don't boost entries the focus already reaches: the
     current picture stays first.
+  - Providers briefly hold `shared_ptr`s to the caches, so the last
+    reference can drop on the reader thread. `ImageCache::createShared()`
+    makes sure the cache is still destroyed on its own (GUI) thread.
 - **Metadata:** exiv2 for photos and a hand-written ISO-BMFF `mvhd`/`tkhd`
   parser for MP4/MOV (`core/Mp4Info`) run on a 4-thread pool after a folder
   opens. Videos get a pseudo-camera such as "Videos (MP4)", so their clock

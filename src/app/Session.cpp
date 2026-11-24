@@ -30,14 +30,14 @@ Session::Session(const QString &dir, QObject *parent)
     tp.quality = DecodeQuality::Fast;
     tp.budgetBytes = 4LL << 30;
     tp.computeHash = true;
-    m_thumbs = std::make_shared<ImageCache>(tp);
+    m_thumbs = ImageCache::createShared(tp);
 
     ImageCache::Params fp;
     fp.quality = DecodeQuality::High;
     fp.threads = 4;
     fp.maxDistance = 3;
     fp.budgetBytes = 512LL << 20;
-    m_full = std::make_shared<ImageCache>(fp);
+    m_full = ImageCache::createShared(fp);
     m_full->setPaused(true);
 
     m_thumbs->setDirectory(m_dir);

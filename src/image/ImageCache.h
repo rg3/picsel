@@ -18,6 +18,7 @@
 #include <QThreadPool>
 #include <QWaitCondition>
 
+#include <memory>
 #include <optional>
 
 namespace picsel {
@@ -35,6 +36,10 @@ public:
 
     explicit ImageCache(Params p, QObject *parent = nullptr);
     ~ImageCache() override;
+    // For a cache that other threads (image providers) hold references to:
+    // whichever thread drops the last one, the cache is destroyed on its own
+    // thread, where its QObject lives and its pool may be joined.
+    static std::shared_ptr<ImageCache> createShared(Params p);
 
     void setDirectory(const QString &dir);
     // Display order. Names not listed are dropped; cached images are kept.
