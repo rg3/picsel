@@ -31,8 +31,10 @@ bool isDatabaseFile(const QString &name);
 // symlinks are ignored) with a supported extension.
 std::optional<DiskFile> statEntry(const QString &dir, const QString &name);
 
-// All supported regular files directly inside |dir|.
-QVector<DiskFile> scanDir(const QString &dir);
+// All supported regular files directly inside |dir|. When the folder cannot
+// be listed completely, returns nothing, sets |ok| to false and leaves the
+// cause in errno. Callers must not take a failed listing as "every file was removed".
+QVector<DiskFile> scanDir(const QString &dir, bool *ok = nullptr);
 
 struct ReconcileResult {
     QVector<DiskFile> added;                       // new on disk: insert with default state

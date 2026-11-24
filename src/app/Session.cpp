@@ -14,6 +14,7 @@
 #include <QFileInfo>
 
 #include <algorithm>
+#include <cerrno>
 
 namespace picsel {
 
@@ -154,8 +155,14 @@ bool Session::loadFiles() {
     // and the reconcile below agree on the result either way).
     if (!m_watcher.start(m_dir))
         qWarning().noquote() << "picsel: cannot watch" << m_dir << m_watcher.errorString();
-    const QVector<DiskFile> disk = scanDir(m_dir);
     bool readOk = false;
+    const QVector<DiskFile> disk = scanDir(m_dir, &readOk);
+    if (!readOk) {
+        // Never reconcile against a partial listing: that would drop the
+        // choices of every file it missed.
+        fail(tr("Cannot list the files in %1: %2").arg(m_dir, qt_error_string(errno)));
+        return false;
+    }
     const QVector<DbFile> before = m_db.files(&readOk);
     if (!readOk) {
         // Never reconcile against a partial list: that would reset choices.

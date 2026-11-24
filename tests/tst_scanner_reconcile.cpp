@@ -143,7 +143,27 @@ private slots:
         QVERIFY(!statEntry(tmp.path(), "picsel.db"));
         QVERIFY(!statEntry(tmp.path(), "missing.jpg"));
 
-        QVERIFY(scanDir(d.filePath("does-not-exist")).isEmpty());
+        bool ok = false;
+        QVERIFY(!scanDir(tmp.path(), &ok).isEmpty());
+        QVERIFY(ok);
+        QVERIFY(scanDir(d.filePath("does-not-exist"), &ok).isEmpty());
+        QVERIFY(!ok);
+    }
+
+    void scanDirReportsIncompleteListing() {
+        if (::geteuid() == 0)
+            QSKIP("root ignores folder permissions");
+        QTemporaryDir tmp;
+        QVERIFY(tmp.isValid());
+        QVERIFY(writeFile(QDir(tmp.path()).filePath("a.jpg"), "a"));
+        // Readable but not searchable: readdir() works, every fstatat() fails.
+        const QByteArray path = QFile::encodeName(tmp.path());
+        QCOMPARE(::chmod(path.constData(), 0600), 0);
+        bool ok = true;
+        const QVector<DiskFile> files = scanDir(tmp.path(), &ok);
+        ::chmod(path.constData(), 0700);
+        QVERIFY(!ok);
+        QVERIFY(files.isEmpty());
     }
 
     void reconcileSynthetic() {

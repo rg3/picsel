@@ -245,6 +245,24 @@ private slots:
         QVERIFY(!exists(fs.src, "a.jpg"));
     }
 
+    void overwriteHardLinkOfSource() {
+        // rename() onto another link of the same inode is a no-op: the
+        // source name must still go away.
+        SameFs fs;
+        QVERIFY(writeFile(fs.src, "a.jpg", "same"));
+        QCOMPARE(::link(QFile::encodeName(fs.src + "/a.jpg").constData(),
+                        QFile::encodeName(fs.dst + "/a.jpg").constData()), 0);
+        MoveJob job(fs.src, fs.dst, {"a.jpg"});
+        const RunResult r = runJob(job, answer(ConflictAction::Overwrite));
+        QVERIFY(r.ok);
+        QCOMPARE(r.conflicts, 1);
+        QCOMPARE(r.outcomes.at(0).status, MoveOutcome::Moved);
+        QCOMPARE(r.outcomes.at(0).destName, QStringLiteral("a.jpg"));
+        QCOMPARE(readFile(fs.dst, "a.jpg"), QByteArray("same"));
+        QCOMPARE(statOf(fs.dst, "a.jpg").st_nlink, nlink_t(1));
+        QVERIFY(!exists(fs.src, "a.jpg"));
+    }
+
     void conflictRename() {
         SameFs fs;
         QVERIFY(writeFile(fs.src, "a.JPG", "new"));

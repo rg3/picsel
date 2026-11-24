@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "DirWatcher.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QSocketNotifier>
@@ -99,8 +100,13 @@ void DirWatcher::reseed() {
     m_moves.clear();
     m_settleTimer.stop();
     m_moveTimer.stop();
-    for (const DiskFile &f : scanDir(m_dir))
+    bool ok = false;
+    for (const DiskFile &f : scanDir(m_dir, &ok))
         m_known.insert(f.name);
+    // An incomplete set only makes later events look like additions, which
+    // the session reconciles; it never drops a file.
+    if (!ok)
+        qWarning().noquote() << "picsel: cannot list" << m_dir << qt_error_string(errno);
 }
 
 std::optional<DiskFile> DirWatcher::statOf(const QString &name) const {

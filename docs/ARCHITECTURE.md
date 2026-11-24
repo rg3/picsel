@@ -38,9 +38,10 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 - **Transactions** nest via SAVEPOINT (`SelectionDb::Transaction`).
 - **Reconcile on open** (`DirScanner::reconcile`): DB rows and disk files are
   matched by name. A vanished row whose inode and size match a new name is a
-  rename, and keeps its selection. `files()` reports read errors, and
-  loading refuses to reconcile against a partial list, which would
-  otherwise reset choices.
+  rename, and keeps its selection. `files()` and `scanDir()` report read
+  errors, and loading refuses to reconcile against a partial list from
+  either side: a partial disk list would drop the choices of every file it
+  missed.
 - **Live changes:** `DirWatcher` uses raw inotify (rename cookies, "complete
   on CLOSE_WRITE or 1 s settle"), and `Session::onFile*` applies them.
   Moved-away files are removed idempotently, whether the watcher or
@@ -97,7 +98,9 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   move.
 - **Same filesystem:** `renameat2(RENAME_NOREPLACE)`, with a linkat+unlink
   fallback where NOREPLACE isn't supported. Overwrite is a plain atomic
-  `renameat` after re-checking that the target is a regular file.
+  `renameat` after re-checking that the target is a regular file. When the
+  target is a hard link of the source, `renameat` succeeds without doing
+  anything (POSIX), so the source name is unlinked instead.
 - **EXDEV (other filesystem):**
   1. Copy (`copy_file_range`, falling back to read/write) into a
      `.picsel-tmp-*` file in the target folder.

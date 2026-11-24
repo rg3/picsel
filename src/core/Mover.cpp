@@ -182,6 +182,14 @@ QString checkOverwriteTarget(int dstFd, const QString &dest) {
     return QStringLiteral("Cannot check target \"%1\": %2").arg(dest, errText(e));
 }
 
+// True when |a| in |aFd| and |b| in |bFd| are the same inode (hard links).
+bool sameFileAt(int aFd, const QByteArray &a, int bFd, const QByteArray &b) {
+    struct stat sa, sb;
+    return ::fstatat(aFd, a.constData(), &sa, AT_SYMLINK_NOFOLLOW) == 0
+        && ::fstatat(bFd, b.constData(), &sb, AT_SYMLINK_NOFOLLOW) == 0
+        && sa.st_dev == sb.st_dev && sa.st_ino == sb.st_ino;
+}
+
 } // namespace
 
 PreflightResult preflightMove(const QString &srcDir, const QString &dstDir, const QStringList &names) {
@@ -380,6 +388,13 @@ MoveOutcome MoveJob::moveOne(int srcFd, int dstFd, const QString &name) {
                 const QString err = checkOverwriteTarget(dstFd, dest);
                 if (!err.isEmpty())
                     return failed(name, err);
+                if (sameFileAt(fromFd, fromName, dstFd, d)) {
+                    // rename() between hard links of one file succeeds and
+                    // does nothing: drop the source name instead.
+                    if (::unlinkat(fromFd, fromName.constData(), 0) != 0)
+                        return failed(name, QStringLiteral("Cannot remove the source: %1").arg(errText(errno)));
+                    return moved(name, dest);
+                }
                 r = ::renameat(fromFd, fromName.constData(), dstFd, d.constData()) == 0 ? 0 : errno;
             } else {
                 r = renameNoReplace(fromFd, fromName, dstFd, d);

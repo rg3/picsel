@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QSet>
 
+#include <cerrno>
 #include <dirent.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -47,8 +48,10 @@ std::optional<DiskFile> statEntry(const QString &dir, const QString &name) {
     return fromStat(name, st);
 }
 
-QVector<DiskFile> scanDir(const QString &dir) {
+QVector<DiskFile> scanDir(const QString &dir, bool *ok) {
     QVector<DiskFile> out;
+    if (ok)
+        *ok = false;
     const QByteArray d = QFile::encodeName(dir);
     const int dfd = ::open(d.constData(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (dfd < 0)
@@ -58,19 +61,39 @@ QVector<DiskFile> scanDir(const QString &dir) {
         ::close(dfd);
         return out;
     }
-    while (struct dirent *e = ::readdir(dp)) {
+    bool good = true;
+    int err = 0;
+    for (;;) {
+        errno = 0; // readdir() only sets errno on failure
+        struct dirent *e = ::readdir(dp);
+        if (!e) {
+            err = errno;
+            good = err == 0;
+            break;
+        }
         if (e->d_type != DT_REG && e->d_type != DT_UNKNOWN)
             continue;
         const QString name = QFile::decodeName(e->d_name);
         if (!isSupportedName(name) || isDatabaseFile(name))
             continue;
         struct stat st;
-        if (::fstatat(dfd, e->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0)
-            continue;
+        if (::fstatat(dfd, e->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0) {
+            if (errno == ENOENT)
+                continue; // deleted since readdir()
+            err = errno; // e.g. EACCES or EIO: the list would be incomplete
+            good = false;
+            break;
+        }
         if (auto f = fromStat(name, st))
             out.push_back(std::move(*f));
     }
     ::closedir(dp); // also closes dfd
+    if (!good) {
+        out.clear();
+        errno = err;
+    }
+    if (ok)
+        *ok = good;
     return out;
 }
 
