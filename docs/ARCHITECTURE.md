@@ -127,11 +127,11 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   (the first install may create `~/.local/share/icons/hicolor`), so with
   `Icon=io.github.rg3.picsel` the icon can be missing until the next
   login. The install runs no cache updates (`update-desktop-database`,
-  `kbuildsycoca6`): that is left to the user or to packaging scripts. The
-  SVG is also embedded and set as the window icon.
+  `update-mime-database`, `kbuildsycoca6`): that is left to the user or to
+  packaging scripts. The SVG is also embedded and set as the window icon.
 - **App id:** `PICSEL_APP_ID` (`io.github.rg3.picsel`, top-level
-  `CMakeLists.txt`) names the desktop file, icon, AppStream metainfo and the
-  Wayland app_id (`setDesktopFileName`). Changing it breaks users' taskbar
+  `CMakeLists.txt`) names the desktop file, icon, AppStream metainfo, MIME
+  file and the Wayland app_id (`setDesktopFileName`). Changing it breaks users' taskbar
   pins and file associations. The application *name* stays `picsel`, which
   keeps the settings in `~/.config/picsel/`.
 - **Install RPATH:** `qt_standard_project_setup` appends `$ORIGIN` entries
@@ -196,9 +196,10 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 
 - **Unit tests:** `ctest` in `build/`, 10 suites, about 27 s
   (`tst_watcher` ~16 s, `tst_videothumbnailer` ~9 s). The video tests
-  generate fixtures with the ffmpeg CLI and skip without it. Two more tests
-  validate the desktop file and metainfo when `desktop-file-validate` and
-  `appstreamcli` are installed. `BUILD_TESTING=OFF` skips all of them (and
+  generate fixtures with the ffmpeg CLI and skip without it. Three more tests
+  validate the desktop file, metainfo and MIME file when
+  `desktop-file-validate`, `appstreamcli` and `update-mime-database` are
+  installed. `BUILD_TESTING=OFF` skips all of them (and
   the Qt Test dependency); `PICSEL_BUILD_TOOLS=ON` builds `bench_decode`.
 - **UI checks without touching the desktop:**
   `PICSEL_AUTOMATION=script.txt picsel DIR` (`src/app/Automation.*`) injects
