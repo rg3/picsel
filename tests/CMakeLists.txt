@@ -15,6 +15,8 @@ picsel_add_test(tst_sorting)
 picsel_add_test(tst_settings)
 picsel_add_test(tst_mover)
 picsel_add_test(tst_selectiondb)
+# Runs tools/init_db.py and checks its output.
+target_compile_definitions(tst_selectiondb PRIVATE PICSEL_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
 picsel_add_test(tst_scanner_reconcile)
 picsel_add_test(tst_watcher)
 picsel_add_test(tst_similarity)

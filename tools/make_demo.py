@@ -14,7 +14,6 @@ import math
 import os
 import random
 import shutil
-import sqlite3
 import subprocess
 import sys
 
@@ -221,10 +220,8 @@ def main():
     else:
         print("ffmpeg not found: no video", file=sys.stderr)
 
-    subprocess.run([sys.executable, "-I", os.path.join(HERE, "init_db.py"), dest, folder], check=True)
-    db = sqlite3.connect(os.path.join(dest, "picsel.db"))
-    db.execute("INSERT OR REPLACE INTO config VALUES('sort_mode', 'date')")
-    db.commit()
+    subprocess.run([sys.executable, "-I", os.path.join(HERE, "init_db.py"), dest, folder, "--sort=date"],
+                   check=True)
     print(dest)
 
 

@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "core/SelectionDb.h"
+#include "core/Sorting.h"
 
 #include <QDir>
 #include <QFile>
+#include <QProcess>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
 #include <algorithm>
@@ -484,6 +487,32 @@ private slots:
         QCOMPARE(names(db), QStringList({"a.jpg", "b.jpg"}));
         QCOMPARE(find(db, "a.jpg")->selected, true);
         QCOMPARE(find(db, "b.jpg")->selected, false);
+    }
+
+    // tools/init_db.py writes picsel.db without the app (test folders, the
+    // README screenshots); it must keep matching the format declared here.
+    void initDbToolMatchesTheFormat() {
+        const QString python = QStandardPaths::findExecutable(QStringLiteral("python3"));
+        if (python.isEmpty())
+            QSKIP("python3 not found");
+        QTemporaryDir dir, target;
+        QProcess p;
+        p.start(python, {QStringLiteral("-I"), QStringLiteral(PICSEL_SOURCE_DIR "/tools/init_db.py"),
+                         dir.path(), target.path(), QStringLiteral("--selected"), QStringLiteral("--sort=name")});
+        QVERIFY(p.waitForFinished(30000));
+        QVERIFY2(p.exitCode() == 0, p.readAllStandardError().constData());
+
+        const DbProbe probe = SelectionDb::probe(dir.path());
+        QVERIFY2(probe.state == DbProbe::State::Ready, qPrintable(probe.error));
+        QCOMPARE(probe.targetDir, target.path());
+        QVERIFY(probe.defaultSelected);
+        SelectionDb db;
+        QVERIFY2(db.open(dir.path()), qPrintable(db.lastError()));
+        QCOMPARE(db.config(cfg::AppId), QString::fromLatin1(kAppId));
+        QCOMPARE(db.config(cfg::SchemaVersion), QString::number(kSchemaVersion));
+        QCOMPARE(db.config(cfg::SourceDir), dir.path());
+        // "name" is not the default order, so this fails if the key or value drift.
+        QCOMPARE(sortModeFromString(db.config(cfg::SortMode)), SortMode::Name);
     }
 };
 
