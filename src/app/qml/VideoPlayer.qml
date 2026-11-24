@@ -36,7 +36,7 @@ Item {
     VideoOutput {
         id: output
         anchors.fill: parent
-        anchors.bottomMargin: controls.height + 8
+        anchors.bottomMargin: Theme.videoControlsHeight + Theme.videoControlsGap
         fillMode: VideoOutput.PreserveAspectFit
     }
 
@@ -61,7 +61,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        height: 44
+        height: Theme.videoControlsHeight
         spacing: 12
 
         Button {

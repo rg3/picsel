@@ -117,6 +117,7 @@ FocusScope {
             required property bool selected
             readonly property var player: videoLoader.item
             readonly property int frameWidth: 6
+            readonly property int frameRoom: frameWidth + 2 // margin that keeps the frame clear
 
             width: pages.width
             height: pages.height
@@ -126,8 +127,9 @@ FocusScope {
             Image {
                 id: thumb
                 anchors.fill: parent
-                anchors.margins: page.frameWidth + 2              // room for the selection frame
-                anchors.bottomMargin: anchors.margins + (page.isVideo ? 52 : 0) // video: same area as the player
+                anchors.margins: page.frameRoom              // room for the selection frame
+                anchors.bottomMargin: anchors.margins // video: same area as the player
+                                      + (page.isVideo ? Theme.videoControlsHeight + Theme.videoControlsGap : 0)
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 cache: false
@@ -141,7 +143,7 @@ FocusScope {
             Image {
                 id: full
                 anchors.fill: parent
-                anchors.margins: page.frameWidth + 2
+                anchors.margins: page.frameRoom
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 cache: false
@@ -158,7 +160,7 @@ FocusScope {
             Loader {
                 id: videoLoader
                 anchors.fill: parent
-                anchors.margins: page.frameWidth + 2
+                anchors.margins: page.frameRoom
                 active: page.isVideo && page.ListView.isCurrentItem && !pages.moving
                 sourceComponent: VideoPlayer {
                     source: root.session.fileUrl(page.index)
@@ -199,7 +201,7 @@ FocusScope {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         height: 76
-        color: "#cc1c1c1f"
+        color: Qt.alpha(Theme.panel, 0.8)
 
         // Bumped when the shown item's details change (a late date, a clock correction).
         property int infoRevision: 0
