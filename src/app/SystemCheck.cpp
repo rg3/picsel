@@ -42,7 +42,7 @@ int runSystemCheck() {
     bool fatal = false;
     std::printf("picsel %s, Qt %s\n", PICSEL_VERSION, qVersion());
 
-    // Keep in sync with the imports under src/app/qml.
+    // Keep in sync with the imports under src/app/qml (tests/qml_modules.sh checks).
     std::printf("QML modules (required):\n");
     QQmlEngine engine;
     for (const char *module : {"QtQuick", "QtQuick.Controls", "QtQuick.Layouts", "QtQuick.Dialogs",
