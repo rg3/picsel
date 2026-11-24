@@ -26,12 +26,20 @@
 
 namespace picsel {
 
+// The full view preloads this many pages on each side; the full cache must
+// prefetch at least as far, since requests within its range get no boost
+// (ImageCache::settledImage) and a page beyond it would wait for the timeout.
+inline constexpr int kFullPreloadPages = 2;
+inline constexpr int kFullPrefetchDistance = 3;
+static_assert(kFullPreloadPages <= kFullPrefetchDistance);
+
 class Session : public QObject {
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("Created by the application")
 
     Q_PROPERTY(int sessionId READ sessionId CONSTANT)
+    Q_PROPERTY(int fullPreloadPages READ fullPreloadPages CONSTANT)
     Q_PROPERTY(QString sourceDir READ sourceDir CONSTANT)
     Q_PROPERTY(QString targetDir READ targetDir NOTIFY targetDirChanged)
     Q_PROPERTY(bool defaultSelected READ defaultSelected WRITE setDefaultSelected NOTIFY defaultSelectedChanged)
@@ -58,6 +66,7 @@ public:
     QString errorString() const { return m_error; }
 
     int sessionId() const { return m_id; }
+    int fullPreloadPages() const { return kFullPreloadPages; }
     QString sourceDir() const { return m_dir; }
     QString targetDir() const { return m_targetDir; }
     bool defaultSelected() const { return m_defaultSelected; }

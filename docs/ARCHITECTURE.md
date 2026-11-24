@@ -90,7 +90,10 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
     stay synchronous: they only wait for one evicted from a huge folder.
   - Several full-size requests wait at once (the view keeps neighbours
     loaded), so they don't boost entries the focus already reaches: the
-    current picture stays first.
+    current picture stays first. This relies on the view's preload range
+    staying within the full cache's prefetch distance: both are declared
+    in `Session.h` (`kFullPreloadPages`, `kFullPrefetchDistance`), with a
+    `static_assert`, and QML reads the page count from the session.
   - Providers briefly hold `shared_ptr`s to the caches, so the last
     reference can drop on the reader thread. `ImageCache::createShared()`
     makes sure the cache is still destroyed on its own (GUI) thread.

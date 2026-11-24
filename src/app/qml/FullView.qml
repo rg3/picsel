@@ -89,7 +89,7 @@ FocusScope {
         highlightMoveVelocity: -1
         boundsBehavior: Flickable.StopAtBounds
         interactive: true
-        cacheBuffer: width * 2
+        cacheBuffer: (width + spacing) * root.session.fullPreloadPages // see kFullPreloadPages
         clip: true
         model: root.session.model
         keyNavigationEnabled: false

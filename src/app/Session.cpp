@@ -35,7 +35,7 @@ Session::Session(const QString &dir, QObject *parent)
     ImageCache::Params fp;
     fp.quality = DecodeQuality::High;
     fp.threads = 4;
-    fp.maxDistance = 3;
+    fp.maxDistance = kFullPrefetchDistance;
     fp.budgetBytes = 512LL << 20;
     m_full = ImageCache::createShared(fp);
     m_full->setPaused(true);
