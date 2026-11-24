@@ -16,7 +16,8 @@ set(picsel_qt_components Core Gui DBus Qml Quick QuickControls2 Concurrent Multi
 if(BUILD_TESTING)
   list(APPEND picsel_qt_components Test)
 endif()
-# Oldest Qt picsel builds with (also stated in the README).
+# Oldest Qt picsel builds with. The README states it and the components too
+# (tests/readme_qt.sh checks).
 set(PICSEL_QT_MIN 6.8)
 find_package(Qt6 ${PICSEL_QT_MIN} REQUIRED COMPONENTS ${picsel_qt_components})
 find_package(PkgConfig REQUIRED)

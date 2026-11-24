@@ -18,14 +18,14 @@ QtObject {
     readonly property color deselected: "#e5534b"
     readonly property color highlightRing: "#ffffff"
     readonly property color danger: "#e5534b"
+    readonly property color control: "#303035"      // button faces
+    readonly property color textDisabled: "#7a7a82" // also placeholders
     // Similar-picture group bars: no reds or greens, which mean (de)selected.
     readonly property var groupColors: ["#4c8dff", "#c084fc", "#f5a524", "#22d3ee", "#f472b6", "#facc15"]
 
     // Applied to every top-level window so the desktop theme (light KDE
-    // palettes for buttons, fields…) never leaks into the dark UI.
-    // Built from the named colours above, so the two can't drift apart.
-    readonly property color control: "#303035"      // button faces
-    readonly property color textDisabled: "#7a7a82" // also placeholders
+    // palettes for buttons, fields…) never leaks into the dark UI. Built
+    // from the named colours above, so the two can't drift apart.
     readonly property Palette palette: Palette {
         // Roles that differ when disabled are set per group: a shorthand
         // (windowText: …) sets every group, and with bindings nothing says

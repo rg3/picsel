@@ -12,10 +12,10 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QJsonDocument>
-#include <QMetaEnum>
-#include <QPalette>
 #include <QJsonObject>
 #include <QLocalSocket>
+#include <QMetaEnum>
+#include <QPalette>
 #include <QQmlComponent>
 #include <QUrl>
 

@@ -39,6 +39,7 @@ endif()
 # Values that C++, QML and the README each spell out.
 add_test(NAME qml_keys COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/qml_keys.sh ${PROJECT_SOURCE_DIR})
 add_test(NAME qml_modules COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/qml_modules.sh ${PROJECT_SOURCE_DIR})
+add_test(NAME readme_qt COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/readme_qt.sh ${PROJECT_SOURCE_DIR})
 find_program(UPDATE_MIME_DATABASE update-mime-database)
 if(UPDATE_MIME_DATABASE)
   add_test(NAME mime_glob COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/mime_glob.sh
