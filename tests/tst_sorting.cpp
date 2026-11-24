@@ -29,6 +29,13 @@ private slots:
         QCOMPARE(compareNames("a.jpg", "A.jpg"), -compareNames("A.jpg", "a.jpg"));
     }
 
+    void sortModeDefaultsToDate() {
+        QCOMPARE(sortModeFromString(QString()), SortMode::Date); // never chosen
+        QCOMPARE(sortModeFromString("bogus"), SortMode::Date);
+        QCOMPARE(sortModeFromString("date"), SortMode::Date);
+        QCOMPARE(sortModeFromString("name"), SortMode::Name);
+    }
+
     void correctedTime() {
         CameraOffsets off{{"NIKON Z 6", 90}};
         const qint64 t0 = correctedTimeMs("2026-11-21T18:00:00", "Google Pixel 9", off);

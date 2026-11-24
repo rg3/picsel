@@ -173,7 +173,7 @@ private:
     const QString m_dir;
     QString m_targetDir;
     bool m_defaultSelected = false;
-    SortMode m_sortMode = SortMode::Name;
+    SortMode m_sortMode = SortMode::Date;
     int m_columns = 4;
     int m_selectedCount = 0;
     quint32 m_nextUid = 1;

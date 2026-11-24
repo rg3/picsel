@@ -7,7 +7,8 @@
 namespace picsel {
 
 SortMode sortModeFromString(const QString &s) {
-    return s == QLatin1String("date") ? SortMode::Date : SortMode::Name;
+    // Date is the default, also for folders that never chose a mode.
+    return s == QLatin1String("name") ? SortMode::Name : SortMode::Date;
 }
 
 QString sortModeToString(SortMode m) {

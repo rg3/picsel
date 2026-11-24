@@ -43,9 +43,11 @@ existing pictures with the same name you choose overwrite, keep both (adds
 renames; across filesystems files are copied, synced to disk, and only then
 removed from the source.
 
-**Sort by date taken** uses EXIF dates (videos use their creation time). If a
-camera's clock was off, fix it once under **Camera clocks…**; corrections are
-global. **Similar pictures** marks bursts of look-alike shots taken a few
+Pictures are sorted by date taken by default; the side panel switches to
+sorting by name. **Sort by date taken** uses EXIF dates (videos use their
+creation time); files without one go last, by name. If a camera's clock was
+off, fix it once under **Camera clocks…**; corrections are global.
+**Similar pictures** marks bursts of look-alike shots taken a few
 seconds apart with a coloured bar; the thresholds are adjustable.
 
 Global settings live in `~/.config/picsel/picsel.ini`.
