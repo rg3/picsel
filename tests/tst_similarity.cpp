@@ -32,10 +32,13 @@ private slots:
     }
 
     void differentImagesHashFar() {
+        // Coarse structure: dHash averages fine textures away to flat grey.
         QImage other(600, 400, QImage::Format_RGB32);
         for (int y = 0; y < 400; ++y)
-            for (int x = 0; x < 600; ++x)
-                other.setPixel(x, y, qRgb((x * 7) % 256, (y * 3) % 256, ((x + y) * 5) % 256));
+            for (int x = 0; x < 600; ++x) {
+                const int v = ((x / 50) * 37 + (y / 40) * 91) % 256;
+                other.setPixel(x, y, qRgb(v, 255 - v, (v * 3) % 256));
+            }
         QVERIFY(hammingDistance(dHash(scene(0)), dHash(other)) > 20);
         QVERIFY(hammingDistance(dHash(scene(0)), dHash(scene(0).flipped(Qt::Horizontal))) > 15);
     }

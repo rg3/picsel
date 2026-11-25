@@ -10,12 +10,11 @@ namespace picsel {
 quint64 dHash(const QImage &image) {
     if (image.isNull())
         return 0;
-    // Shrink in two steps: a cheap pass to ~64 px keeps the smooth pass tiny.
-    QImage small = image;
-    if (small.width() > 128 || small.height() > 128)
-        small = small.scaled(72, 64, Qt::IgnoreAspectRatio, Qt::FastTransformation);
-    small = small.scaled(9, 8, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
-                .convertToFormat(QImage::Format_Grayscale8);
+    // One area-averaging pass. A nearest-neighbour pre-shrink samples so few
+    // pixels that the hash changed with the thumbnail size and near-duplicates
+    // drifted past the threshold.
+    const QImage small = image.scaled(9, 8, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+                             .convertToFormat(QImage::Format_Grayscale8);
     quint64 h = 0;
     for (int y = 0; y < 8; ++y) {
         const uchar *row = small.constScanLine(y);
