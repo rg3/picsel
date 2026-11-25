@@ -7,7 +7,8 @@ this before changing anything non-trivial; the README covers usage and build.
 
 ```
 src/core    no UI; unit-tested; links Qt Core/Gui only
-src/image   decoding and caches (picsel_core) + video thumbnails (picsel_media, QtMultimedia)
+src/image   decoding and caches (picsel_core)
+            + video thumbnails (picsel_media, QtMultimedia)
 src/app     Application, Session, FileListModel, QML (qml/), automation hook
 ```
 
@@ -29,9 +30,12 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
     default selection, sort mode, current file. New keys need no schema
     bump: older versions ignore them.
   - `files(name, selected, size, mtime_ns, inode, exif_time, camera, dhash)`.
-  - The `exif_time` and `camera` columns are a cache, valid only while size
-    and mtime match. A NULL `exif_time` means "not read yet"
-    (`FileMeta::scanned`). `dhash` is unused so far.
+  - The `exif_time`, `camera` and `dhash` columns are a cache, valid only
+    while size and mtime match (`updateStat` clears them otherwise). A NULL
+    `exif_time` means "not read yet" (`FileMeta::scanned`); a hash can be
+    saved before it. `Session` queues the names of items to save and
+    writes their *current* metadata, which `onFileChanged` resets, so a
+    late write can't store values of the old contents.
 - **Durability:** WAL mode, `synchronous=FULL`, one transaction per selection
   change, so a `kill -9` loses nothing (tested). Bulk writes (metadata,
   removals after a move) are batched with timers into one transaction, so
@@ -81,13 +85,15 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   - Scheduling: the job picked next is always the undecoded entry nearest
     the visible range. The budget evicts the farthest entries, never ones
     nearer than the candidate, and never injected video frames.
-  - Per-entry generations drop stale in-flight results after `remove()` or
-    `clear()` (a file replaced under the same name). A removed entry is
+  - Per-entry generations drop stale in-flight results after `remove()`,
+    `clear()` (a file replaced under the same name) or `invalidate()` (a file
+    changed). `hashed()` carries the generation, since the queued signal can
+    arrive after `invalidate()`: `isCurrent()` tells. A removed entry is
     skipped until the next `setFiles()` lists it again.
 - **QML access:** QML gets images through `ThumbImageProvider` and
-  `FullImageProvider` (`image://thumb|full/<session>/<uid>/<version>`, built only by
-  `providerUrl()`; QML calls `Session::thumbUrl`/`fullUrl`). Both
-  run on the engine's single pixmap reader thread and only touch the
+  `FullImageProvider` (`image://thumb|full/<session>/<uid>/<version>`,
+  built only by `providerUrl()`; QML calls `Session::thumbUrl`/`fullUrl`).
+  Both run on the engine's single pixmap reader thread and only touch the
   thread-safe cache plus a mutex-guarded uid→name map. File names never
   appear in URLs.
   - Trap: anything that blocks in a synchronous provider holds up every
@@ -115,10 +121,12 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   thread). On Qt 6.11, `QVideoFrame::toImage()` already applies the
   rotation of portrait phone clips. The full view plays only the current
   page's video (`VideoPlayer.qml`), paused and muted at first.
-- **Similar pictures:** a 64-bit dHash of each thumbnail. Neighbours in
-  display order are linked when their Hamming distance is at most N bits
-  and, when both times are known, they are at most M seconds apart. Runs of
-  2+ become groups (`core/Similarity`).
+- **Similar pictures:** a 64-bit dHash of each thumbnail, cached in the DB.
+  A cached hash is kept rather than replaced by one from a thumbnail of
+  another size (a few bits off), so groups don't change with the window
+  size. Neighbours in display order are linked when their Hamming distance
+  is at most N bits and, when both times are known, they are at most M
+  seconds apart. Runs of 2+ become groups (`core/Similarity`).
 
 ## Moving files (`core/Mover`)
 
@@ -166,9 +174,9 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   packaging scripts. The SVG is also embedded and set as the window icon.
 - **App id:** `PICSEL_APP_ID` (`io.github.rg3.picsel`, top-level
   `CMakeLists.txt`) names the desktop file, icon, AppStream metainfo, MIME
-  file and the Wayland app_id (`setDesktopFileName`). Changing it breaks users' taskbar
-  pins and file associations. The application *name* stays `picsel`, which
-  keeps the settings in `~/.config/picsel/`.
+  file and the Wayland app_id (`setDesktopFileName`). Changing it breaks
+  users' taskbar pins and file associations. The application *name* stays
+  `picsel`, which keeps the settings in `~/.config/picsel/`.
 - **Install RPATH:** `qt_standard_project_setup` appends `$ORIGIN` entries
   to `CMAKE_INSTALL_RPATH`; they are filtered out again because picsel
   installs no libraries and distro checks reject them.

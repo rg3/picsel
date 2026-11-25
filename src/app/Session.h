@@ -19,6 +19,7 @@
 #include <QHash>
 #include <QObject>
 #include <QPointer>
+#include <QSet>
 #include <QThreadPool>
 #include <QTimer>
 #include <QVariantMap>
@@ -240,7 +241,7 @@ private:
     bool m_rememberedExact = false;
     bool m_loaded = false;    // open() succeeded: m_currentName may be saved
     QHash<QString, PhotoInfo> m_details;      // lens/exposure for the info panel
-    QHash<QString, FileMeta> m_pendingMeta;   // to write to the DB in one transaction
+    QSet<QString> m_pendingMeta; // items whose meta to write to the DB in one transaction
     QTimer m_metaFlushTimer;
     QTimer m_resortTimer;
     QPointer<MoveJob> m_moveJob;
@@ -248,7 +249,6 @@ private:
     VideoThumbnailer m_video;
     QSize m_thumbBox;
     CameraOffsets m_offsets;
-    QHash<QString, quint64> m_hashes;
     QTimer m_groupTimer;
     bool m_showSimilar = true;
     int m_similarSeconds = settings::kSimilarSeconds.fallback;

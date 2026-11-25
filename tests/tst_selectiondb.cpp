@@ -144,7 +144,7 @@ private slots:
         QVERIFY(!a->meta.dhash);
 
         // Re-inserting an existing name replaces it and clears metadata.
-        QVERIFY(db.setMeta("a.jpg", FileMeta{"2026-01-01T00:00:00", "Cam", 5}));
+        QVERIFY(db.setMeta("a.jpg", FileMeta{"2026-01-01T00:00:00", "Cam", 5, true}));
         QVERIFY(db.insertFile(makeFile("a.jpg", false, 99, 98, 97)));
         const auto a2 = find(db, "a.jpg");
         QCOMPARE(a2->selected, false);
@@ -165,7 +165,7 @@ private slots:
         QVERIFY(db.create(dir.path(), dir.path(), false));
         QVERIFY(db.insertFile(makeFile("a.jpg", true, 10, 20, 30)));
         QVERIFY(db.insertFile(makeFile("b.jpg", false, 11, 21, 31)));
-        QVERIFY(db.setMeta("a.jpg", FileMeta{"t", "Cam", 7}));
+        QVERIFY(db.setMeta("a.jpg", FileMeta{"t", "Cam", 7, true}));
 
         QVERIFY(db.renameFile("a.jpg", "c.jpg"));
         QCOMPARE(names(db), (QStringList{"b.jpg", "c.jpg"}));
@@ -238,7 +238,7 @@ private slots:
         SelectionDb db;
         QVERIFY(db.create(dir.path(), dir.path(), false));
         QVERIFY(db.insertFile(makeFile("a.jpg", true, 10, 20, 30)));
-        const FileMeta meta{"2026-11-21T18:00:00", "NIKON Z 6", 0x1234};
+        const FileMeta meta{"2026-11-21T18:00:00", "NIKON Z 6", 0x1234, true};
         QVERIFY(db.setMeta("a.jpg", meta));
 
         // Same size and mtime (only inode changed): metadata stays valid.
@@ -276,8 +276,8 @@ private slots:
             QVERIFY(db.insertFile(makeFile("a.jpg")));
             QVERIFY(db.insertFile(makeFile("b.jpg")));
             QVERIFY(db.setMeta("a.jpg", FileMeta{"2026-11-21T18:00:00.250", "Google Pixel 9",
-                                                  0xFEDCBA9876543210ULL}));
-            QVERIFY(db.setMeta("b.jpg", FileMeta{"", "", std::nullopt}));
+                                                  0xFEDCBA9876543210ULL, true}));
+            QVERIFY(db.setMeta("b.jpg", FileMeta{"", "", std::nullopt, true}));
         }
         SelectionDb db;
         QVERIFY(db.open(dir.path()));
@@ -289,6 +289,21 @@ private slots:
         QVERIFY(b->meta.exifTime.isEmpty());
         QVERIFY(b->meta.camera.isEmpty());
         QVERIFY(!b->meta.dhash);
+        QVERIFY(b->meta.scanned); // read, and no EXIF found
+    }
+
+    void setMetaHashBeforeExif() {
+        // A hash saved before the EXIF was read must not mark it as read.
+        QTemporaryDir dir;
+        SelectionDb db;
+        QVERIFY(db.create(dir.path(), dir.path(), false));
+        QVERIFY(db.insertFile(makeFile("a.jpg")));
+        FileMeta meta;
+        meta.dhash = 0x42;
+        QVERIFY(db.setMeta("a.jpg", meta));
+        const auto a = find(db, "a.jpg");
+        QVERIFY(!a->meta.scanned);
+        QCOMPARE(a->meta.dhash, std::optional<quint64>(0x42));
     }
 
     void nestedTransactionRollback() {

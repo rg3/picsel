@@ -167,7 +167,17 @@ void ImageCache::invalidate(const QString &name) {
         return;
     it->failed = false;
     it->decodedFor = QSize(); // keep the old pixels until the new ones arrive
+    // A decode in flight may have read the old contents: drop it when it
+    // lands, or it would count as current.
+    it->inFlight = false;
+    ++it->gen;
     pumpLocked();
+}
+
+bool ImageCache::isCurrent(const QString &name, quint32 gen) const {
+    QMutexLocker lock(&m_mutex);
+    auto it = m_entries.constFind(name);
+    return it != m_entries.constEnd() && it->gen == gen;
 }
 
 void ImageCache::remove(const QString &name) {
@@ -349,7 +359,7 @@ void ImageCache::runJob(const QString &name, QSize box, quint64 epoch, quint32 g
             return;
     }
     if (ok && m_params.computeHash)
-        emit hashed(name, hash);
+        emit hashed(name, hash, gen);
     if (ok)
         emit ready(name, fullSize);
     else

@@ -64,6 +64,33 @@ private slots:
         QVERIFY(qBlue(cache.image(name).pixel(5, 5)) > 200);
     }
 
+    void invalidateDropsOldDecodes() {
+        QTemporaryDir dir;
+        const QString name = QStringLiteral("a.jpg");
+        writeJpeg(dir.filePath(name), Qt::red, {3000, 2000});
+        ImageCache::Params p;
+        p.computeHash = true;
+        ImageCache cache(p);
+        QSignalSpy hashed(&cache, &ImageCache::hashed);
+        cache.setDirectory(dir.path());
+        cache.setFiles({name}, {true});
+        cache.setFocus(0, 0);
+        cache.setTargetSize(QSize(64, 64));
+        // Changed while (most likely) still decoding: the old result must
+        // not count as the image of the new contents.
+        writeJpeg(dir.filePath(name), Qt::blue, {3000, 2000});
+        cache.invalidate(name);
+        QTRY_VERIFY(qBlue(cache.image(name).pixel(5, 5)) > 200);
+        QTRY_VERIFY(!hashed.isEmpty());
+        const quint32 gen = hashed.last().at(2).toUInt();
+        QVERIFY(cache.isCurrent(name, gen));
+
+        // A hash that arrives after invalidate() is recognisably old.
+        cache.invalidate(name);
+        QVERIFY(!cache.isCurrent(name, gen));
+        QTRY_VERIFY(cache.isCurrent(name, hashed.last().at(2).toUInt()));
+    }
+
     void settledImageBoostsWithoutBlocking() {
         QTemporaryDir dir;
         writeJpeg(dir.filePath("a.jpg"), Qt::red);

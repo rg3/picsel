@@ -226,8 +226,8 @@ private slots:
         }
         QCOMPARE(db.files().size(), 5);
         QVERIFY(db.setSelected(QStringList{"keep.jpg", "rename_me.jpg", "grow.jpg"}, true));
-        QVERIFY(db.setMeta("grow.jpg", FileMeta{"t", "c", 1}));
-        QVERIFY(db.setMeta("keep.jpg", FileMeta{"t", "c", 2}));
+        QVERIFY(db.setMeta("grow.jpg", FileMeta{"t", "c", 1, true}));
+        QVERIFY(db.setMeta("keep.jpg", FileMeta{"t", "c", 2, true}));
 
         // Changes while the folder was closed.
         QVERIFY(QFile::rename(d.filePath("rename_me.jpg"), d.filePath("renamed.jpg")));

@@ -44,8 +44,18 @@ Session::Session(const QString &dir, QObject *parent)
     m_full->setDirectory(m_dir);
     connect(m_thumbs.get(), &ImageCache::ready, this, &Session::onThumbReady);
     connect(m_thumbs.get(), &ImageCache::failed, this, &Session::onThumbFailed);
-    connect(m_thumbs.get(), &ImageCache::hashed, this, [this](const QString &name, quint64 h) {
-        m_hashes.insert(name, h);
+    connect(m_thumbs.get(), &ImageCache::hashed, this,
+            [this](const QString &name, quint64 h, quint32 gen) {
+        Item *it = m_model.mutableAt(m_model.rowOf(name));
+        // Keep a cached hash: one from another thumbnail size differs by a
+        // few bits, and groups shouldn't change with the window size.
+        // onFileChanged() drops it when the file changes, and a hash of the
+        // old contents can still arrive after that: it's no longer current.
+        if (!it || it->meta.dhash || !m_thumbs->isCurrent(name, gen))
+            return;
+        it->meta.dhash = h;
+        m_pendingMeta.insert(name);
+        m_metaFlushTimer.start();
         if (!m_groupTimer.isActive())
             m_groupTimer.start();
     });
@@ -268,6 +278,7 @@ bool Session::loadFiles(LoadInfo *info) {
     rebuildCacheOrder();
     startMetadataScan();
     requestVideoThumbs();
+    m_groupTimer.start(); // hashes cached in the DB group pictures right away
     return true;
 }
 
@@ -319,7 +330,7 @@ void Session::onMetadataRead(const QString &name, qint64 size, qint64 mtimeNs, c
         it->meta.scanned = true;
         it->meta.exifTime = info.exifTime;
         it->meta.camera = info.camera;
-        m_pendingMeta.insert(name, it->meta);
+        m_pendingMeta.insert(name);
         m_metaFlushTimer.start();
         const qint64 t = correctedTimeMs(info.exifTime, info.camera, m_offsets);
         if (t != it->sortTimeMs) {
@@ -341,8 +352,11 @@ void Session::flushMetaWrites() {
     // On failure the batch is dropped: the files are read again next time.
     SelectionDb::Transaction tx(m_db);
     bool ok = true;
+    // Write what the items hold now, not what they held when queued:
+    // onFileChanged() resets an item, so stale values can't reach the DB.
     for (auto i = m_pendingMeta.cbegin(); ok && i != m_pendingMeta.cend(); ++i)
-        ok = m_db.setMeta(i.key(), i.value());
+        if (const Item *it = m_model.at(m_model.rowOf(*i)))
+            ok = m_db.setMeta(*i, it->meta);
     if (!ok || !tx.commit())
         reportError(tr("Could not save picture details: %1").arg(m_db.lastError()));
     m_pendingMeta.clear();
@@ -730,7 +744,6 @@ void Session::removeItem(const QString &name) {
     m_full->remove(name);
     m_video.cancel(name);
     m_details.remove(name);
-    m_hashes.remove(name);
     m_pendingMeta.remove(name);
     if (wasCurrent) {
         const Item *next = m_model.at(std::min(row, m_model.count() - 1));
@@ -826,10 +839,8 @@ void Session::onFileRenamed(const QString &from, const DiskFile &to) {
     m_uids->set(it->uid, to.name);
     if (m_details.contains(from))
         m_details.insert(to.name, m_details.take(from));
-    if (m_hashes.contains(from))
-        m_hashes.insert(to.name, m_hashes.take(from));
-    if (m_pendingMeta.contains(from))
-        m_pendingMeta.insert(to.name, m_pendingMeta.take(from)); // its old row is gone
+    if (m_pendingMeta.remove(from))
+        m_pendingMeta.insert(to.name); // its old row is gone
     if (m_currentName == from)
         m_currentName = to.name;
     const int newRow = m_model.resort(row, m_sortMode); // also notifies the row
@@ -859,6 +870,9 @@ void Session::onFileChanged(const DiskFile &f) {
     it->mtimeNs = f.mtimeNs;
     it->inode = f.inode;
     it->meta.scanned = false;
+    it->meta.dhash.reset(); // the new thumbnail brings a new one
+    if (!m_groupTimer.isActive())
+        m_groupTimer.start();
     m_thumbs->invalidate(f.name);
     m_full->invalidate(f.name);
     if (it->kind == MediaKind::Video && m_thumbBox.isValid())
@@ -872,7 +886,6 @@ void Session::onRescanNeeded() {
     flushRemovals();
     flushMetaWrites();
     m_details.clear();
-    m_hashes.clear();
     m_thumbs->clear(); // items are rebuilt with no thumbnail yet: decode again
     m_full->clear();
     m_video.clear();
@@ -920,8 +933,7 @@ void Session::recomputeGroups() {
         QVector<SimilarityInput> in;
         in.reserve(items.size());
         for (const Item &it : items) {
-            auto h = m_hashes.constFind(it.name);
-            in.push_back({h == m_hashes.constEnd() ? std::nullopt : std::optional<quint64>(*h), it.sortTimeMs});
+            in.push_back({it.meta.dhash, it.sortTimeMs});
         }
         groups = similarityGroups(in, m_similarBits, m_similarSeconds);
     }

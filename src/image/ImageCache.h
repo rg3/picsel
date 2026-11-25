@@ -69,7 +69,11 @@ public:
     // Drops the boost of |name| once nobody waits for it any more.
     void unboost(const QString &name);
 
+    // The file changed: decode it again, dropping any decode in flight.
     void invalidate(const QString &name);
+    // False once |name| was invalidated, removed or cleared after the decode
+    // of generation |gen| (from hashed()) began: its result is of old contents.
+    bool isCurrent(const QString &name, quint32 gen) const;
     // Forgets |name| (file deleted, or replaced by another file of that name)
     // and stops decoding it until the next setFiles() lists it again.
     void remove(const QString &name);
@@ -83,7 +87,8 @@ signals:
     // Emitted from worker threads; connect with the default (auto) connection.
     void ready(const QString &name, QSize fullSize);
     void failed(const QString &name);
-    void hashed(const QString &name, quint64 hash);
+    // |gen|: see isCurrent(). Queued, so it can arrive after invalidate().
+    void hashed(const QString &name, quint64 hash, quint32 gen);
 
 private:
     struct Entry {

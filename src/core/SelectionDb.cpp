@@ -430,8 +430,14 @@ bool SelectionDb::setMeta(const QString &name, const FileMeta &meta) {
     if (!st)
         return setErrorFromDb();
     st.bind(1, name);
-    st.bind(2, meta.exifTime.isNull() ? QStringLiteral("") : meta.exifTime);
-    st.bind(3, meta.camera.isNull() ? QStringLiteral("") : meta.camera);
+    // Unread EXIF stays NULL: a hash can be saved before the EXIF is read.
+    if (meta.scanned) {
+        st.bind(2, meta.exifTime.isNull() ? QStringLiteral("") : meta.exifTime);
+        st.bind(3, meta.camera.isNull() ? QStringLiteral("") : meta.camera);
+    } else {
+        st.bindNull(2);
+        st.bindNull(3);
+    }
     if (meta.dhash)
         st.bind(4, qint64(*meta.dhash));
     else
