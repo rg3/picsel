@@ -56,10 +56,7 @@ Rectangle {
         visible: value !== ""
         Layout.fillWidth: true
         Label { text: key; color: Theme.textDim; font.pixelSize: Theme.fontNormal; Layout.preferredWidth: 96 }
-        Label {
-            text: value; color: Theme.text; font.pixelSize: Theme.fontNormal
-            Layout.fillWidth: true; elide: Text.ElideMiddle
-        }
+        SelectableLabel { text: value; Layout.fillWidth: true }
     }
 
     component KeyRow: RowLayout {
@@ -195,13 +192,11 @@ Rectangle {
                         onClicked: { root.session.showDetails = !root.session.showDetails; root.activated() }
                     }
                 }
-                Label {
+                SelectableLabel {
                     Layout.fillWidth: true
                     text: root.info.name ?? ""
-                    color: Theme.text
                     font.pixelSize: Theme.fontLarge
                     font.bold: true
-                    elide: Text.ElideMiddle
                 }
                 InfoRow { key: qsTr("Size"); value: root.info.size ?? "" }
                 InfoRow {

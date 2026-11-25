@@ -12,7 +12,7 @@ target_include_directories(picsel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_compile_definitions(picsel PRIVATE PICSEL_VERSION="${PROJECT_VERSION}" PICSEL_APP_ID="${PICSEL_APP_ID}")
 target_compile_options(picsel PRIVATE -Wall -Wextra)
 
-set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(qml/Theme.qml qml/TextSelection.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(picsel
   URI Picsel
@@ -27,6 +27,8 @@ qt_add_qml_module(picsel
     qml/ConfirmMoveDialog.qml
     qml/DialogButton.qml
     qml/PathBox.qml
+    qml/SelectableLabel.qml
+    qml/TextSelection.qml
     qml/ConflictDialog.qml
     qml/MoveProgressDialog.qml
     qml/CameraClocksDialog.qml

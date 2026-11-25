@@ -226,19 +226,17 @@ FocusScope {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
-                Label {
+                SelectableLabel {
                     Layout.fillWidth: true
                     text: bar.info.name ?? ""
-                    color: Theme.text
                     font.pixelSize: Theme.fontLarge
                     font.bold: true
-                    elide: Text.ElideMiddle
                 }
-                Label {
+                SelectableLabel {
+                    Layout.fillWidth: true
                     text: qsTr("%1 of %2").arg(pages.currentIndex + 1).arg(pages.count)
                           + ((bar.info.date ?? "") !== "" ? "  ·  " + bar.info.date : "")
                     color: Theme.textDim
-                    font.pixelSize: Theme.fontNormal
                 }
             }
 

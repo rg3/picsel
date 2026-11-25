@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "Automation.h"
 
+#include <QClipboard>
 #include <QCoreApplication>
 #include <QFile>
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QMouseEvent>
@@ -56,6 +58,21 @@ static void sendClick(QWindow *w, QPointF pos, bool dbl) {
     }
 }
 
+// Left-button drag in small steps, as a hand would (e.g. to select text).
+static void sendDrag(QWindow *w, QPointF from, QPointF to) {
+    auto send = [&](QEvent::Type type, QPointF pos, Qt::MouseButtons buttons) {
+        QMouseEvent ev(type, pos, pos, w->mapToGlobal(pos), Qt::LeftButton, buttons,
+                       Qt::NoModifier, QPointingDevice::primaryPointingDevice());
+        QCoreApplication::sendEvent(w, &ev);
+    };
+    send(QEvent::MouseMove, from, Qt::NoButton);
+    send(QEvent::MouseButtonPress, from, Qt::LeftButton);
+    constexpr int kSteps = 10;
+    for (int i = 1; i <= kSteps; ++i)
+        send(QEvent::MouseMove, from + (to - from) * i / kSteps, Qt::LeftButton);
+    send(QEvent::MouseButtonRelease, to, Qt::NoButton);
+}
+
 void Automation::step() {
     if (!m_window)
         return;
@@ -75,6 +92,11 @@ void Automation::step() {
                 sendKey(m_window, seq[0]);
         } else if ((cmd == QLatin1String("click") || cmd == QLatin1String("dclick")) && a.size() > 2) {
             sendClick(m_window, QPointF(a[1].toDouble(), a[2].toDouble()), cmd == QLatin1String("dclick"));
+        } else if (cmd == QLatin1String("drag") && a.size() > 4) {
+            sendDrag(m_window, QPointF(a[1].toDouble(), a[2].toDouble()),
+                     QPointF(a[3].toDouble(), a[4].toDouble()));
+        } else if (cmd == QLatin1String("clipboard")) {
+            qInfo().noquote() << "automation: clipboard:" << QGuiApplication::clipboard()->text();
         } else if (cmd == QLatin1String("wait") && a.size() > 1) {
             delay = a[1].toInt();
             break;

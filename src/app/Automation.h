@@ -8,6 +8,8 @@
 //   key <sequence>      e.g. "key Right", "key S", "key Ctrl+Z"
 //   click <x> <y>       left click at window coordinates (logical pixels)
 //   dclick <x> <y>      double click
+//   drag <x1> <y1> <x2> <y2>  left-button drag (e.g. to select text)
+//   clipboard           log the clipboard's text
 //   wait <ms>
 //   shot <file.png>     grab the window contents
 //   resize <w> <h>
