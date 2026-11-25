@@ -63,6 +63,22 @@ struct SameFs {
     }
 };
 
+// Records that |signal| was emitted, from any thread. Unlike
+// QSignalSpy::wait(), which only counts emissions after it is called, wait()
+// also sees one the job's worker made before: a short job can finish before
+// the test gets to wait. Create it after any QSignalSpy on the same signal,
+// so the spy has recorded the arguments once wait() returns.
+struct Emitted {
+    template <typename Signal>
+    Emitted(MoveJob &job, Signal signal) {
+        QObject::connect(&job, signal, &job, [f = flag] { f->store(true); }, Qt::DirectConnection);
+    }
+    bool wait(int timeoutMs = 20000) const {
+        return QTest::qWaitFor([f = flag] { return f->load(); }, timeoutMs);
+    }
+    std::shared_ptr<std::atomic_bool> flag = std::make_shared<std::atomic_bool>(false);
+};
+
 // Runs a job to completion. |onConflict| answers conflicts (from the worker
 // thread). Returns the finished() arguments.
 struct RunResult {
@@ -83,8 +99,9 @@ RunResult runJob(MoveJob &job, std::function<void(MoveJob &, const QString &)> o
     }, Qt::DirectConnection);
     QSignalSpy progress(&job, &MoveJob::progress);
     QSignalSpy finished(&job, &MoveJob::finished);
+    const Emitted done(job, &MoveJob::finished);
     job.start();
-    r.ok = finished.wait(20000);
+    r.ok = done.wait();
     if (!r.ok)
         return r;
     r.outcomes = finished.at(0).at(0).value<QVector<MoveOutcome>>();
@@ -409,9 +426,9 @@ private slots:
         QVERIFY(writeFile(fs.dst, "a.jpg", "old"));
         {
             MoveJob job(fs.src, fs.dst, {"a.jpg"});
-            QSignalSpy conflict(&job, &MoveJob::conflictFound);
+            const Emitted conflict(job, &MoveJob::conflictFound);
             job.start();
-            QVERIFY(conflict.wait(20000));
+            QVERIFY(conflict.wait());
         } // destructor cancels and joins
         QCOMPARE(readFile(fs.src, "a.jpg"), QByteArray("new"));
         QCOMPARE(readFile(fs.dst, "a.jpg"), QByteArray("old"));
