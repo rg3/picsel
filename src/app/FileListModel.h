@@ -65,6 +65,9 @@ public:
     void setName(int row, const QString &name);
 
     void reset(QVector<Item> items);
+    // Takes the same items in a new order. Unlike reset(), views keep their
+    // delegates, so tiles whose picture didn't move don't reload.
+    void reorder(QVector<Item> items);
     // Inserts keeping the sort order; returns the row.
     int insertSorted(Item item, SortMode mode);
     void removeRow(int row);

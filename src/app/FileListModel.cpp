@@ -87,6 +87,25 @@ void FileListModel::reset(QVector<Item> items) {
     emit countChanged();
 }
 
+void FileListModel::reorder(QVector<Item> items) {
+    Q_ASSERT(items.size() == m_items.size());
+    const QList<QPersistentModelIndex> none;
+    emit layoutAboutToBeChanged(none, VerticalSortHint);
+    const QModelIndexList from = persistentIndexList();
+    QList<quint32> uids;
+    uids.reserve(from.size());
+    for (const QModelIndex &i : from)
+        uids.push_back(m_items[i.row()].uid);
+    m_items = std::move(items);
+    invalidateIndex();
+    QModelIndexList to;
+    to.reserve(from.size());
+    for (quint32 uid : uids)
+        to.push_back(index(rowOfUid(uid)));
+    changePersistentIndexList(from, to);
+    emit layoutChanged(none, VerticalSortHint);
+}
+
 int FileListModel::sortedPosition(const Item &item, SortMode mode, int skipRow) const {
     // Binary search over the list without |skipRow|.
     const SortKey key = sortKeyOf(item);

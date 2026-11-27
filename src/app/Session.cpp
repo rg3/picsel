@@ -396,7 +396,7 @@ void Session::resortAll() {
         same = items[i].uid == m_model.items()[i].uid;
     if (same)
         return;
-    m_model.reset(std::move(items));
+    m_model.reorder(std::move(items));
     rebuildCacheOrder();
     const int row = followedRow();
     emit highlightRequested(row >= 0 ? row : 0);

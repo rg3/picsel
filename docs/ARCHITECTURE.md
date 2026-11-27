@@ -21,7 +21,10 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   `MoveJob`. QML talks only to `Session` and the model.
 - **FileListModel**: the files in display order. An `Item` has a stable
   `uid` used in image-provider URLs, and a `thumbVersion` that QML watches
-  to reload a tile.
+  to reload a tile. Re-sorts use `reorder()` (a `layoutChanged` with
+  `VerticalSortHint`), not `reset()`: a reset rebuilds every delegate, and
+  each visible thumbnail reloads and fades in again, so the grid flashes
+  even where nothing moved.
 
 ## Data and persistence
 
