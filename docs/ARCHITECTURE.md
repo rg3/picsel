@@ -244,7 +244,7 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 
 ## Testing
 
-- **Unit tests:** `ctest` in `build/`, 10 suites, about 27 s
+- **Unit tests:** `ctest` in `build/`, 11 suites, about 28 s
   (`tst_watcher` ~16 s, `tst_videothumbnailer` ~9 s). The video tests
   generate fixtures with the ffmpeg CLI and skip without it. Three more tests
   validate the desktop file, metainfo and MIME file when
