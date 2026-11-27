@@ -37,11 +37,12 @@ Item {
         onSelectedTextChanged: {
             if (selectedText === "")
                 return
-            if (TextSelection.owner && TextSelection.owner !== input)
-                TextSelection.owner.deselect()
-            TextSelection.owner = input
+            if (MouseSelection.owner && MouseSelection.owner !== input)
+                MouseSelection.owner.deselect()
+            MouseSelection.owner = input
         }
-        Component.onDestruction: if (TextSelection.owner === input) TextSelection.owner = null
+        // No onDestruction cleanup: QML nulls an Item property when its
+        // object goes, and at shutdown the singleton may already be gone.
     }
     Label {
         id: shortened
