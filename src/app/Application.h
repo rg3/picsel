@@ -9,6 +9,7 @@
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
+#include <QSet>
 #include <QUrl>
 #include <QtQmlIntegration>
 #include <optional>
@@ -70,7 +71,8 @@ private:
     void showPicker();
     void showSetup(const QString &dir, const QString &highlight, const DbProbe &probe,
                    std::optional<settings::Resume> resume);
-    void showMainWindow(Session *session, const QString &highlight, std::optional<settings::Resume> resume);
+    void showMainWindow(Session *session, const QString &highlight, std::optional<settings::Resume> resume,
+                        bool fresh = false);
     void showError(const QString &message);
     // Application palette from Theme.qml (see the .cpp).
     void applyThemePalette();
@@ -86,6 +88,8 @@ private:
     QHash<QString, QPointer<QQuickWindow>> m_setupWindows; // by source folder
     // --resume of the launch that opened a setup window, by source folder.
     QHash<QString, settings::Resume> m_setupResume;
+    // Setup windows for folders never set up before (not moved or copied ones).
+    QSet<QString> m_setupNew;
 };
 
 } // namespace picsel

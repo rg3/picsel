@@ -271,9 +271,12 @@ void Application::showSetup(const QString &dir, const QString &highlight, const 
         m_setupWindows.insert(dir, win);
         if (resume)
             m_setupResume.insert(dir, *resume);
+        if (probe.state == DbProbe::State::NotSetUp)
+            m_setupNew.insert(dir);
         connect(win, &QObject::destroyed, this, [this, dir] {
             m_setupWindows.remove(dir);
             m_setupResume.remove(dir);
+            m_setupNew.remove(dir);
         });
     } else {
         delete w;
@@ -289,6 +292,7 @@ void Application::setupAccepted(const QString &sourceDir, const QString &targetD
     // A folder set up before (then moved or copied) may remember a picture.
     const std::optional<settings::Resume> resume = m_setupResume.contains(sourceDir)
         ? std::optional(m_setupResume.take(sourceDir)) : std::nullopt;
+    const bool fresh = m_setupNew.remove(sourceDir);
     auto *session = new Session(sourceDir);
     if (!session->create(toLocalPath(targetDir), defaultSelected)) {
         showError(session->errorString());
@@ -296,7 +300,7 @@ void Application::setupAccepted(const QString &sourceDir, const QString &targetD
         quitIfIdle();
         return;
     }
-    showMainWindow(session, highlight, resume);
+    showMainWindow(session, highlight, resume, fresh);
 }
 
 void Application::setupCancelled() {
@@ -314,11 +318,13 @@ void Application::setupCancelled() {
 }
 
 void Application::showMainWindow(Session *session, const QString &highlight,
-                                 std::optional<settings::Resume> resume) {
+                                 std::optional<settings::Resume> resume, bool fresh) {
     bool exact = false;
     const int remembered = session->rememberedRow(&exact);
-    const int row = settings::startRow(resume.value_or(settings::resume()),
-                                       highlight.isEmpty() ? -1 : session->rowOf(highlight), remembered, exact);
+    const settings::Resume mode = resume.value_or(settings::resume());
+    const bool newByDate = fresh && mode == settings::Resume::Always && session->startAtFirst();
+    const int row = settings::startRow(mode, highlight.isEmpty() ? -1 : session->rowOf(highlight),
+                                       remembered, exact, newByDate);
     QObject *obj = createWindow("Main", {
         {QStringLiteral("session"), QVariant::fromValue(session)},
         {QStringLiteral("initialIndex"), row},

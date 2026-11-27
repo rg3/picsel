@@ -120,6 +120,11 @@ public:
     // Remembers the highlighted picture for the next open (normal close only:
     // saving on every move would write to disk on each key press).
     void saveCurrentFile();
+    // For a folder just set up and sorted by date: its dates are still being
+    // read, so keep the highlight on the first picture through the re-sorts
+    // until the user moves it (see settings::startRow). Returns false (and
+    // does nothing) when not sorted by date.
+    bool startAtFirst();
 
     // Checks the selected files against the target folder. Returns
     // {count, total, target, fatal, blocked: [names], conflicts: [names]}.
@@ -207,6 +212,7 @@ private:
     void onMetadataRead(const QString &name, qint64 size, qint64 mtimeNs, const picsel::PhotoInfo &info);
     void flushMetaWrites();
     void resortAll();
+    int followedRow(); // where the highlight goes when rows shift
     void onFileMoved(const QString &name);
     void onMoveFinished(const QVector<picsel::MoveOutcome> &outcomes, bool cancelled);
     void flushRemovals();
@@ -240,6 +246,7 @@ private:
     QString m_rememberedName; // see rememberedRow()
     bool m_rememberedExact = false;
     bool m_loaded = false;    // open() succeeded: m_currentName may be saved
+    bool m_stickToFirst = false; // see startAtFirst()
     QHash<QString, PhotoInfo> m_details;      // lens/exposure for the info panel
     QSet<QString> m_pendingMeta; // items whose meta to write to the DB in one transaction
     QTimer m_metaFlushTimer;

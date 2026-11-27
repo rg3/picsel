@@ -13,6 +13,8 @@
 //   wait <ms>
 //   shot <file.png>     grab the window contents
 //   resize <w> <h>
+//   nextwindow          continue in the next window picsel shows (e.g. the
+//                       main window, after accepting a setup window)
 //   quit
 #pragma once
 
@@ -35,6 +37,11 @@ private:
     QPointer<QQuickWindow> m_window;
     QStringList m_lines;
     int m_pos = 0;
+    void moveTo(QQuickWindow *window);
+
+    static QPointer<Automation> s_waiting; // after "nextwindow"
+    // The last window shown: a click can open one before "nextwindow" runs.
+    static QPointer<QQuickWindow> s_newest;
 };
 
 } // namespace picsel

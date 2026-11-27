@@ -28,9 +28,11 @@ when you are done.
 - Closing a folder's window remembers the highlighted picture, and the folder
   reopens there, even when you open it through another picture. If that
   picture was renamed meanwhile, picsel follows it; if it is gone, the one now
-  in its place is highlighted. **Reopen at** in the side panel, or
+  in its place is highlighted. A folder opened for the first time starts at
+  its earliest picture, wherever the picture you opened it through falls in
+  date order. **Reopen at** in the side panel, or
   `--resume=always|folder|never` for one launch, changes this: `folder` starts
-  at the opened picture when there is one, `never` behaves like picsel 0.1.0.
+  at the opened picture when there is one (also in a new folder), `never` behaves like picsel 0.1.0.
 
 | Key | Action |
 |---|---|

@@ -83,19 +83,23 @@ private slots:
         QTest::addColumn<int>("given");      // -1: a folder was opened
         QTest::addColumn<int>("remembered"); // -1: nothing remembered
         QTest::addColumn<bool>("exact");     // false: the remembered picture is gone
+        QTest::addColumn<bool>("newByDate"); // a folder just set up, sorted by date
         QTest::addColumn<int>("expected");
         const int always = int(settings::Resume::Always), folder = int(settings::Resume::Folder),
                   never = int(settings::Resume::Never);
-        QTest::newRow("always, folder") << always << -1 << 7 << true << 7;
-        QTest::newRow("always, picture") << always << 3 << 7 << true << 7;
-        QTest::newRow("always, picture, remembered gone") << always << 3 << 7 << false << 3;
-        QTest::newRow("always, folder, remembered gone") << always << -1 << 7 << false << 7;
-        QTest::newRow("always, picture, nothing remembered") << always << 3 << -1 << false << 3;
-        QTest::newRow("folder mode, folder") << folder << -1 << 7 << true << 7;
-        QTest::newRow("folder mode, picture") << folder << 3 << 7 << true << 3;
-        QTest::newRow("never, folder") << never << -1 << 7 << true << 0;
-        QTest::newRow("never, picture") << never << 3 << 7 << true << 3;
-        QTest::newRow("nothing at all") << always << -1 << -1 << false << 0;
+        QTest::newRow("always, folder") << always << -1 << 7 << true << false << 7;
+        QTest::newRow("always, picture") << always << 3 << 7 << true << false << 7;
+        QTest::newRow("always, picture, remembered gone") << always << 3 << 7 << false << false << 3;
+        QTest::newRow("always, folder, remembered gone") << always << -1 << 7 << false << false << 7;
+        QTest::newRow("always, picture, nothing remembered") << always << 3 << -1 << false << false << 3;
+        QTest::newRow("folder mode, folder") << folder << -1 << 7 << true << false << 7;
+        QTest::newRow("folder mode, picture") << folder << 3 << 7 << true << false << 3;
+        QTest::newRow("never, folder") << never << -1 << 7 << true << false << 0;
+        QTest::newRow("never, picture") << never << 3 << 7 << true << false << 3;
+        QTest::newRow("nothing at all") << always << -1 << -1 << false << false << 0;
+        QTest::newRow("always, new folder by date") << always << 3 << -1 << false << true << 0;
+        QTest::newRow("folder mode, new folder by date") << folder << 3 << -1 << false << true << 3;
+        QTest::newRow("never, new folder by date") << never << 3 << -1 << false << true << 3;
     }
 
     void startRow() {
@@ -103,8 +107,9 @@ private slots:
         QFETCH(int, given);
         QFETCH(int, remembered);
         QFETCH(bool, exact);
+        QFETCH(bool, newByDate);
         QFETCH(int, expected);
-        QCOMPARE(settings::startRow(settings::Resume(mode), given, remembered, exact), expected);
+        QCOMPARE(settings::startRow(settings::Resume(mode), given, remembered, exact, newByDate), expected);
     }
 };
 

@@ -58,7 +58,11 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   (`rememberedRow`, "exact" false). `settings::startRow` then weighs it
   against a picture given on the command line, per `settings::Resume` (side
   panel, or `--resume`, which is forwarded to a running instance and kept
-  through the setup window).
+  through the setup window). Under `always`, a folder just set up (not a
+  moved or copied one) and sorted by date starts at row 0 instead of the given
+  picture. Its dates are still being read then, and each re-sort keeps the
+  highlighted *picture*, so `Session::startAtFirst` makes `followedRow()` keep
+  row 0 instead until the user moves.
 - **Global settings** (columns, camera clock offsets, similarity thresholds,
   show-details) are stored in `~/.config/picsel/picsel.ini` via
   `core/Settings`. Camera offsets are cached per Session; a change is pushed
@@ -247,6 +251,8 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
 - **UI checks without touching the desktop:**
   `PICSEL_AUTOMATION=script.txt picsel DIR` (`src/app/Automation.*`) injects
   key and mouse events into picsel's own window and saves screenshots.
+  `nextwindow` carries the script on into the next window, e.g. the main
+  window after clicking Start in a setup window.
   - Automation runs (and `PICSEL_STANDALONE=1`) skip the single-instance
     socket. Otherwise a test launch is handed to the user's running picsel and
     opens a window on their screen.

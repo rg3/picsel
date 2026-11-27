@@ -53,6 +53,8 @@ void setResume(Resume r);
 // opened with, |remembered| the one restored from the last close (-1 for
 // none). |exact| is false when the remembered picture is gone and
 // |remembered| is the one now in its place: a given picture beats that guess.
-int startRow(Resume mode, int given, int remembered, bool exact);
+// |newByDate| is a folder just set up and sorted by date: Always starts it at
+// the first (earliest) picture, as the given one is usually mid-folder.
+int startRow(Resume mode, int given, int remembered, bool exact, bool newByDate = false);
 
 } // namespace picsel::settings

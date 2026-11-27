@@ -20,7 +20,8 @@ parent folder).
 If
 .I path
 is a picture, picsel opens its folder with that picture highlighted, unless
-the folder remembers another one (see below). If it is a folder, or the
+the folder remembers another one, or is opened for the first time and sorted
+by date (see below). If it is a folder, or the
 .I picsel.db
 file of a folder, picsel opens that folder. Without
 .IR path ,
@@ -56,7 +57,8 @@ setting).
 (the default) starts at the picture highlighted when the folder was last
 closed, even if
 .I path
-is another picture;
+is another picture, and a folder opened for the first time at its first
+(earliest) picture;
 .B folder
 does so only when
 .I path

@@ -13,7 +13,21 @@
 
 namespace picsel {
 
+QPointer<Automation> Automation::s_waiting;
+QPointer<QQuickWindow> Automation::s_newest;
+
+void Automation::moveTo(QQuickWindow *window) {
+    m_window = window;
+    QTimer::singleShot(500, this, &Automation::step);
+}
+
 void Automation::startIfRequested(QQuickWindow *window) {
+    s_newest = window;
+    if (Automation *a = s_waiting) {
+        s_waiting = nullptr;
+        a->moveTo(window);
+        return;
+    }
     static bool started = false;
     const QString path = qEnvironmentVariable("PICSEL_AUTOMATION");
     if (path.isEmpty() || started)
@@ -30,7 +44,8 @@ void Automation::startIfRequested(QQuickWindow *window) {
 }
 
 Automation::Automation(QQuickWindow *window, QStringList lines)
-    : QObject(window), m_window(window), m_lines(std::move(lines)) {}
+    // Owned by the app: the window may close mid-script (e.g. setup).
+    : QObject(QCoreApplication::instance()), m_window(window), m_lines(std::move(lines)) {}
 
 static void sendKey(QWindow *w, const QKeyCombination &kc) {
     const QString text = kc.keyboardModifiers() & ~Qt::ShiftModifier
@@ -74,13 +89,15 @@ static void sendDrag(QWindow *w, QPointF from, QPointF to) {
 }
 
 void Automation::step() {
-    if (!m_window)
-        return;
     int delay = 30;
     while (m_pos < m_lines.size()) {
         const QString line = m_lines[m_pos++].trimmed();
         if (line.isEmpty() || line.startsWith(QLatin1Char('#')))
             continue;
+        if (!m_window && line != QLatin1String("nextwindow")) {
+            qWarning().noquote() << "automation: the window closed; stopping at" << line;
+            return;
+        }
         const QStringList a = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
         const QString cmd = a[0];
         qInfo().noquote() << "automation:" << line;
@@ -108,6 +125,12 @@ void Automation::step() {
             m_window->resize(a[1].toInt(), a[2].toInt());
             delay = 300;
             break;
+        } else if (cmd == QLatin1String("nextwindow")) {
+            if (s_newest && s_newest != m_window)
+                moveTo(s_newest);
+            else
+                s_waiting = this;
+            return;
         } else if (cmd == QLatin1String("quit")) {
             QCoreApplication::quit();
             return;

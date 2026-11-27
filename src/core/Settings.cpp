@@ -92,11 +92,11 @@ Resume resume() {
 }
 void setResume(Resume r) { store().setValue(QStringLiteral("start/resume"), resumeToString(r)); }
 
-int startRow(Resume mode, int given, int remembered, bool exact) {
+int startRow(Resume mode, int given, int remembered, bool exact, bool newByDate) {
     int row = -1;
     switch (mode) {
     case Resume::Always:
-        row = exact && remembered >= 0 ? remembered : given >= 0 ? given : remembered;
+        row = newByDate ? 0 : exact && remembered >= 0 ? remembered : given >= 0 ? given : remembered;
         break;
     case Resume::Folder:
         row = given >= 0 ? given : remembered;

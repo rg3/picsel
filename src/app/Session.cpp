@@ -196,6 +196,22 @@ void Session::saveCurrentFile() {
                              << SelectionDb::dbPath(m_dir) << m_db.lastError();
 }
 
+bool Session::startAtFirst() {
+    m_stickToFirst = m_sortMode == SortMode::Date;
+    return m_stickToFirst;
+}
+
+int Session::followedRow() {
+    if (!m_stickToFirst || m_model.count() == 0)
+        return m_model.rowOf(m_currentName);
+    // The view's row stays 0, so it won't report the new picture there itself.
+    if (const QString first = m_model.at(0)->name; first != m_currentName) {
+        m_currentName = first;
+        emit itemInfoChanged(0);
+    }
+    return 0;
+}
+
 void Session::setResume(const QString &mode) {
     const auto r = settings::parseResume(mode);
     if (!r) {
@@ -363,6 +379,8 @@ void Session::flushMetaWrites() {
 }
 
 void Session::setCurrentRow(int row) {
+    if (row > 0)
+        m_stickToFirst = false; // the user moved (re-sorts keep row 0 meanwhile)
     if (const Item *it = m_model.at(row))
         m_currentName = it->name;
 }
@@ -380,7 +398,7 @@ void Session::resortAll() {
         return;
     m_model.reset(std::move(items));
     rebuildCacheOrder();
-    const int row = m_model.rowOf(m_currentName);
+    const int row = followedRow();
     emit highlightRequested(row >= 0 ? row : 0);
 }
 
@@ -431,6 +449,7 @@ void Session::setSortMode(const QString &mode) {
     if (m == m_sortMode)
         return;
     m_sortMode = m;
+    m_stickToFirst = false;
     if (!m_db.setConfig(QString::fromLatin1(cfg::SortMode), sortModeToString(m)))
         emit errorOccurred(tr("Could not save the sort order: %1").arg(m_db.lastError()));
     resortAll();
@@ -794,7 +813,7 @@ void Session::onFileAdded(const DiskFile &f) {
     recountSelected();
     scheduleMetadata({f.name});
     // Keep the highlight on the same picture if rows shifted under it.
-    const int row = m_model.rowOf(m_currentName);
+    const int row = followedRow();
     if (row >= 0)
         emit highlightRequested(row);
 }
