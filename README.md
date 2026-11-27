@@ -121,7 +121,9 @@ Build options:
 - `-DBUILD_TESTING=OFF` skips the unit tests and the Qt Test dependency.
   Optional test tools: the `ffmpeg` CLI (video tests are skipped without
   it), `desktop-file-validate`, `appstreamcli` and `update-mime-database`
-  (validate the desktop file, AppStream metainfo and MIME file).
+  (validate the desktop file, AppStream metainfo and MIME file). One test
+  checks picsel's QML type names against those of the installed Qt QML
+  modules it imports; modules missing from the build root are skipped.
 - `-DPICSEL_BUILD_TOOLS=ON` also builds the developer tool `bench_decode`.
 
 The install puts `picsel` in `bin/`, plus its desktop file, icon, AppStream

@@ -249,7 +249,12 @@ src/app     Application, Session, FileListModel, QML (qml/), automation hook
   generate fixtures with the ffmpeg CLI and skip without it. Three more tests
   validate the desktop file, metainfo and MIME file when
   `desktop-file-validate`, `appstreamcli` and `update-mime-database` are
-  installed. `BUILD_TESTING=OFF` skips all of them (and
+  installed. Two shell checks: `qml_keys.sh` (map keys QML reads exist in
+  `Session.cpp`) and `qml_type_clash.sh`: QML type names share one
+  capitalised namespace, and when an imported Qt module gains a type named
+  like one of ours, Qt's can silently win at run time (QtQuick 6.11's
+  `TextSelection` did). It reads the installed Qt's `qmldir`/`.qmltypes`
+  files, following their imports. `BUILD_TESTING=OFF` skips all of them (and
   the Qt Test dependency); `PICSEL_BUILD_TOOLS=ON` builds `bench_decode`.
 - **UI checks without touching the desktop:**
   `PICSEL_AUTOMATION=script.txt picsel DIR` (`src/app/Automation.*`) injects

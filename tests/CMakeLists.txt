@@ -45,3 +45,8 @@ if(UPDATE_MIME_DATABASE)
   add_test(NAME mime_glob COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/mime_glob.sh
            ${UPDATE_MIME_DATABASE} ${PROJECT_SOURCE_DIR}/data/${PICSEL_APP_ID}.mime.xml)
 endif()
+# Our QML type names must not collide with those of the Qt modules we import.
+add_test(NAME qml_type_clash COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/qml_type_clash.sh
+         ${PROJECT_BINARY_DIR}/src/app/Picsel "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_QML}"
+         ${PROJECT_SOURCE_DIR}/src/app/qml)
+set_tests_properties(qml_type_clash PROPERTIES SKIP_RETURN_CODE 77)
